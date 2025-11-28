@@ -1,0 +1,28 @@
+[
+  {
+    "id": "1",
+    "type": "weather",
+    "title": "Weather",
+    "subtitle": "Coordinates: My Town",
+    "scheduleMode": "fixed-time",
+    "startTime": "08:00",
+    "endTime": "09:00",
+    "config": {
+      "location": "My Town",
+      "latitude": 40.7128,
+      "longitude": -74.006
+    },
+    "lastUpdated": "Just now"
+  },
+  {
+    "id": "2",
+    "type": "calendar",
+    "title": "Year Progress",
+    "subtitle": "Target: 2025",
+    "scheduleMode": "cycle",
+    "config": {
+      "year": 2025
+    },
+    "lastUpdated": "9d ago"
+  }
+]
