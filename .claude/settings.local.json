@@ -10,7 +10,8 @@
       "Bash(mkdir:*)",
       "Bash(npm install:*)",
       "Bash(tree:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx @next/codemod@latest built-in-next-font:*)"
     ],
     "deny": [],
     "ask": []

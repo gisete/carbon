@@ -9,9 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@next/font": "^14.2.15",
     "lucide-react": "^0.555.0",
     "next": "16.0.5",
+    "node-ical": "^0.22.1",
     "puppeteer": "^24.31.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",

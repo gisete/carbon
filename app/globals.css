@@ -20,6 +20,7 @@
 	--spacing-2xl: 2rem;
 
 	/* Font Families */
+	--font-sans: var(--font-sans);
 	--font-serif: var(--font-serif);
 	--font-mono: var(--font-mono);
 
@@ -31,6 +32,11 @@
 	/* Shadows */
 	--shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 	--shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+	font-family: var(--font-sans);
 }
 
 /* Selection Color */

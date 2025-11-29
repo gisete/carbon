@@ -14,7 +14,7 @@ export default function Logo() {
 				<span>ARBON</span>
 			</div>
 			<div className="text-[0.65rem] tracking-[0.125em] text-medium-gray uppercase font-bold ml-0.5">
-				reTerminal // Dashboard
+				E-Ink // Dashboard
 			</div>
 		</div>
 	);

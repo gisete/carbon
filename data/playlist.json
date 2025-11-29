@@ -15,26 +15,24 @@
     "lastUpdated": "Just now"
   },
   {
-    "id": "2",
-    "type": "calendar",
-    "title": "Year Progress",
-    "subtitle": "Target: 2025",
+    "id": "mikde1h2gklidy2iaj",
+    "type": "custom-text",
+    "title": "Custom Text",
+    "subtitle": "No message set",
     "scheduleMode": "cycle",
     "config": {
-      "year": 2025
+      "text": ""
     },
-    "lastUpdated": "9d ago"
+    "lastUpdated": "Just now"
   },
   {
-    "id": "mij26qw22lqdyaviez2",
-    "type": "weather",
-    "title": "Weather",
-    "subtitle": "Coordinates: Not Set",
+    "id": "mikde9zmzcwjk491fp",
+    "type": "custom-text",
+    "title": "Custom Text",
+    "subtitle": "No message set",
     "scheduleMode": "cycle",
     "config": {
-      "location": "",
-      "latitude": null,
-      "longitude": null
+      "text": ""
     },
     "lastUpdated": "Just now"
   }

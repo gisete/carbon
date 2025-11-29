@@ -4,9 +4,16 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutTemplate, MonitorPlay } from "lucide-react";
-import { IBM_Plex_Serif, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Serif, JetBrains_Mono } from "next/font/google";
 import Logo from "@/app/components/Logo";
 import PageHeader from "@/app/components/PageHeader";
+import { PluginProvider, usePlugin } from "./contexts/PluginContext";
+
+const ibmPlexSans = IBM_Plex_Sans({
+	weight: ["300", "400", "600"],
+	subsets: ["latin"],
+	variable: "--font-sans",
+});
 
 const ibmPlexSerif = IBM_Plex_Serif({
 	weight: ["300", "400", "600"],
@@ -21,13 +28,26 @@ const jetBrainsMono = JetBrains_Mono({
 	variable: "--font-mono",
 });
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 	const isPlaylist = pathname === "/admin/playlist";
 	const isScreens = pathname === "/admin/screens";
+	const { selectedPlugin } = usePlugin();
+
+	// Determine page title based on context
+	const getPageTitle = () => {
+		if (isPlaylist) return "Playlist";
+		if (isScreens) {
+			if (selectedPlugin === 'weather') return "Weather";
+			if (selectedPlugin === 'calendar') return "Calendar";
+			if (selectedPlugin === 'system') return "System";
+			return "Screens";
+		}
+		return "";
+	};
 
 	return (
-		<div className={`min-h-screen bg-off-white text-charcoal p-6 md:p-12 font-sans ${ibmPlexSerif.variable} ${jetBrainsMono.variable}`}>
+		<div className={`min-h-screen bg-off-white text-charcoal p-6 md:p-12 font-sans ${ibmPlexSans.variable} ${ibmPlexSerif.variable} ${jetBrainsMono.variable}`}>
 			{/* OUTER FRAME */}
 			<div className="max-w-5xl mx-auto relative min-h-[80vh] border-l border-r border-light-gray bg-off-white md:px-12">
 				{/* --- LOGO & NAVIGATION --- */}
@@ -79,12 +99,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 					</div>
 				</div>
 
-				{/* --- PAGE HEADER --- */}
-				<PageHeader title={isScreens ? "Screens" : "Playlist"} />
+				{/* --- CONTENT AREA --- */}
+				<div className="pt-8">
+					{/* PAGE HEADER */}
+					{!selectedPlugin && <PageHeader title={getPageTitle()} />}
 
-				{/* --- PAGE CONTENT --- */}
-				<main>{children}</main>
+					{/* PAGE CONTENT */}
+					<main>{children}</main>
+				</div>
 			</div>
 		</div>
+	);
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+	return (
+		<PluginProvider>
+			<AdminLayoutContent>{children}</AdminLayoutContent>
+		</PluginProvider>
 	);
 }
