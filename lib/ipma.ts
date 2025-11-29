@@ -1,5 +1,6 @@
 import SunCalc from "suncalc";
 import { Sun, CloudSun, Cloud, CloudRain, CloudDrizzle, CloudLightning, CloudFog, Snowflake, Moon } from "lucide-react";
+import { getSettings } from "@/lib/settings"; // Import the settings loader
 
 // --- Types ---
 export interface IpmaDailyForecast {
@@ -36,10 +37,6 @@ export interface WeatherData {
 	hourly: IpmaHourlyForecast[];
 	location: string;
 }
-
-// --- Constants ---
-const LOCATION_ID = 1100600; // Caldas da Rainha
-const COORDS = { lat: 39.4062, lon: -9.1364 };
 
 // --- Icon Mapping ---
 export const getIpmaIcon = (id: number) => {
@@ -78,6 +75,20 @@ export const getIpmaIcon = (id: number) => {
 // --- Fetcher ---
 export async function getIpmaForecast(overrideHumidity?: string): Promise<WeatherData | null> {
 	try {
+		// 1. READ SETTINGS DYNAMICALLY
+		const settings = await getSettings();
+
+		// Default to Caldas if settings are missing/invalid, or use the saved values
+		const lat = settings.weather.latitude || 39.4062;
+		const lon = settings.weather.longitude || -9.1364;
+		const locationName = settings.weather.location || "Caldas da Rainha";
+
+		// Note: IPMA API relies on "Location IDs" (like 1100600).
+		// Since we are allowing custom Lat/Lon, we technically need a way to map Lat/Lon -> IPMA ID.
+		// For now, we will KEEP the hardcoded ID for the API fetch, but use the Lat/Lon for SunCalc.
+		// *Future improvement: Add a "Location ID" field to your settings or a lookup function.*
+		const LOCATION_ID = 1100600;
+
 		const res = await fetch(`https://api.ipma.pt/public-data/forecast/aggregate/${LOCATION_ID}.json`, {
 			next: { revalidate: 1800 }, // Cache 30 mins
 		});
@@ -85,20 +96,19 @@ export async function getIpmaForecast(overrideHumidity?: string): Promise<Weathe
 		if (!res.ok) throw new Error("IPMA API Failed");
 		const rawData = await res.json();
 
-		// 1. Separate Daily vs Hourly
+		// 2. Separate Daily vs Hourly
 		const rawDaily = rawData.filter((item: any) => item.idPeriodo === 24);
 		const rawHourly = rawData.filter((item: any) => item.idPeriodo !== 24);
 
-		// 2. Find "Current" (Closest hourly forecast to NOW)
+		// 3. Find "Current" (Closest hourly forecast to NOW)
 		const now = new Date();
 		const currentHour = rawHourly.find((h: any) => new Date(h.dataPrev || h.data) > now) || rawHourly[0];
 
-		// 3. Calculate Sun Times
-		const times = SunCalc.getTimes(now, COORDS.lat, COORDS.lon);
+		// 4. Calculate Sun Times using Dynamic Coords
+		const times = SunCalc.getTimes(now, lat, lon);
 		const formatTime = (date: Date) => date.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
 
-		// 4. Map Hourly Data (Next 10 entries)
-		// CHANGED: Increased slice from 7 to 10 to match your UI requirement
+		// 5. Map Hourly Data (Next 10 entries)
 		const nextHours = rawHourly
 			.filter((h: any) => new Date(h.dataPrev || h.data) >= now)
 			.slice(0, 10)
@@ -112,7 +122,7 @@ export async function getIpmaForecast(overrideHumidity?: string): Promise<Weathe
 				windDir: h.ddVento,
 			}));
 
-		// 5. Map Daily Data
+		// 6. Map Daily Data
 		const mapDaily = (entry: any): IpmaDailyForecast => ({
 			forecastDate: entry.dataPrev || entry.data,
 			tMin: entry.tMin,
@@ -126,7 +136,6 @@ export async function getIpmaForecast(overrideHumidity?: string): Promise<Weathe
 		return {
 			current: {
 				temp: currentHour.tMed || currentHour.tMax,
-				// Override humidity if provided (from Home Assistant), else use API
 				humidity: overrideHumidity || currentHour.hR || "0",
 				windDir: currentHour.ddVento,
 				windSpeed: currentHour.ffVento,
@@ -136,7 +145,7 @@ export async function getIpmaForecast(overrideHumidity?: string): Promise<Weathe
 			},
 			today: mapDaily(rawDaily[0]),
 			hourly: nextHours,
-			location: "Caldas da Rainha",
+			location: locationName, // Uses the name from Settings
 		};
 	} catch (error) {
 		console.error("Weather Fetch Error:", error);

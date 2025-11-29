@@ -24,5 +24,18 @@
       "year": 2025
     },
     "lastUpdated": "9d ago"
+  },
+  {
+    "id": "mij26qw22lqdyaviez2",
+    "type": "weather",
+    "title": "Weather",
+    "subtitle": "Coordinates: Not Set",
+    "scheduleMode": "cycle",
+    "config": {
+      "location": "",
+      "latitude": null,
+      "longitude": null
+    },
+    "lastUpdated": "Just now"
   }
 ]

@@ -43,3 +43,4 @@ next-env.d.ts
 
 # Data (optional - uncomment if you don't want to track playlist data)
 # /data/
+node_modules
