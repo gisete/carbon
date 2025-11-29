@@ -11,7 +11,11 @@
       "Bash(npm install:*)",
       "Bash(tree:*)",
       "Bash(npm run build:*)",
-      "Bash(npx @next/codemod@latest built-in-next-font:*)"
+      "Bash(npx @next/codemod@latest built-in-next-font:*)",
+      "Read(//Users/gisetekindahl/**)",
+      "Bash(cat:*)",
+      "Bash(curl -I \"https://p44-caldav.icloud.com/published/2/MTA3MDE5MzE3NTEwNzAxOfbxYQxumWQA5JLlxu_YkxMJs0U6JGMg2PokG4AMxR-SPVesf2xcVMxm8A-Eg5Yf2L5exswSelj7yCnW5w-aG3g\")",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

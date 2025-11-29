@@ -11,6 +11,7 @@ interface PlaylistGridProps {
 	playlist: PlaylistItem[];
 	isLoading: boolean;
 	onRemoveItem: (id: string) => void;
+	onEditItem: (item: PlaylistItem) => void;
 }
 
 // --- HELPERS ---
@@ -66,7 +67,7 @@ const renderPreview = (type: PluginType, groupHoverClass: string) => {
 };
 
 // --- COMPONENT ---
-export default function PlaylistGrid({ playlist, isLoading, onRemoveItem }: PlaylistGridProps) {
+export default function PlaylistGrid({ playlist, isLoading, onRemoveItem, onEditItem }: PlaylistGridProps) {
 	return (
 		<>
 			{/* LIST HEADER */}
@@ -145,7 +146,11 @@ export default function PlaylistGrid({ playlist, isLoading, onRemoveItem }: Play
 										)}
 									</div>
 									<div className="col-span-1 flex justify-end gap-3 text-warm-gray">
-										<button className="hover:text-bright-blue transition-colors">
+										<button
+											onClick={() => onEditItem(item)}
+											className="hover:text-bright-blue transition-colors"
+											aria-label="Edit settings"
+										>
 											<SlidersHorizontal className="w-4 h-4 stroke-1" />
 										</button>
 										{isActive && (
@@ -153,7 +158,11 @@ export default function PlaylistGrid({ playlist, isLoading, onRemoveItem }: Play
 												<Eye className="w-4 h-4 stroke-1" />
 											</button>
 										)}
-										<button onClick={() => onRemoveItem(item.id)} className="hover:text-bold-red transition-colors">
+										<button
+											onClick={() => onRemoveItem(item.id)}
+											className="hover:text-bold-red transition-colors"
+											aria-label="Remove item"
+										>
 											<X className="w-4 h-4 stroke-1" />
 										</button>
 									</div>

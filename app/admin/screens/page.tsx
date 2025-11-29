@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Save, Cloud, CalendarDays, Settings2, MapPin, Globe, Clock, ArrowLeft } from "lucide-react";
 import { usePlugin } from "../contexts/PluginContext";
+import { fetchSettings, updateSettings } from "@/app/actions";
 
 // --- TYPES ---
 
@@ -61,11 +62,12 @@ const PLUGINS: PluginCard[] = [
 
 export default function ScreensConfig() {
 	const { selectedPlugin, setSelectedPlugin } = usePlugin();
+	const [isLoading, setIsLoading] = useState(true);
 
 	const [weatherConfig, setWeatherConfig] = useState<WeatherConfig>({
-		locationName: "Caldas da Rainha",
-		latitude: "39.4062",
-		longitude: "-9.1364",
+		locationName: "",
+		latitude: "",
+		longitude: "",
 	});
 
 	const [calendarConfig, setCalendarConfig] = useState<CalendarConfig>({
@@ -77,14 +79,53 @@ export default function ScreensConfig() {
 		refreshInterval: "30",
 	});
 
-	const handleSave = () => {
-		console.log("Saving configuration:", {
-			weather: weatherConfig,
-			calendar: calendarConfig,
-			system: systemConfig,
-		});
-		// TODO: Wire up to backend
-		setSelectedPlugin(null);
+	// Load settings on mount
+	useEffect(() => {
+		async function loadSettings() {
+			try {
+				const settings = await fetchSettings();
+				setWeatherConfig({
+					locationName: settings.weather.location,
+					latitude: settings.weather.latitude.toString(),
+					longitude: settings.weather.longitude.toString(),
+				});
+				setCalendarConfig({
+					icalUrl: settings.calendar.icalUrl,
+				});
+				setSystemConfig({
+					timezone: settings.system.timezone,
+					refreshInterval: settings.system.refreshInterval.toString(),
+				});
+			} catch (error) {
+				console.error("Failed to load settings:", error);
+			} finally {
+				setIsLoading(false);
+			}
+		}
+		loadSettings();
+	}, []);
+
+	const handleSave = async () => {
+		try {
+			await updateSettings({
+				weather: {
+					location: weatherConfig.locationName,
+					latitude: parseFloat(weatherConfig.latitude),
+					longitude: parseFloat(weatherConfig.longitude),
+				},
+				calendar: {
+					icalUrl: calendarConfig.icalUrl,
+				},
+				system: {
+					timezone: systemConfig.timezone,
+					refreshInterval: parseInt(systemConfig.refreshInterval),
+				},
+			});
+			console.log("Settings saved successfully");
+			setSelectedPlugin(null);
+		} catch (error) {
+			console.error("Failed to save settings:", error);
+		}
 	};
 
 	const handleBack = () => {

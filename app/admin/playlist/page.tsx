@@ -6,6 +6,7 @@ import { fetchPlaylist, updatePlaylist } from "@/app/actions";
 import type { PlaylistItem } from "@/lib/playlist";
 import PlaylistGrid from "./components/PlaylistGrid";
 import Modal from "@/app/components/Modal";
+import ConfigModal from "./components/ConfigModal";
 
 // --- TYPES ---
 type PluginType = "weather" | "calendar" | "custom-text";
@@ -49,6 +50,7 @@ export default function PlaylistPage() {
 	const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [editingItem, setEditingItem] = useState<PlaylistItem | null>(null);
 
 	// Load playlist
 	useEffect(() => {
@@ -127,6 +129,23 @@ export default function PlaylistPage() {
 		await savePlaylistToBackend(updatedPlaylist);
 	}
 
+	// Edit Plugin Configuration
+	function handleEditItem(item: PlaylistItem) {
+		setEditingItem(item);
+	}
+
+	// Save Configuration Changes
+	async function handleSaveConfig(updatedItem: PlaylistItem) {
+		console.log("PlaylistPage - Received updated item:", updatedItem);
+		const updatedPlaylist = playlist.map((item) =>
+			item.id === updatedItem.id ? updatedItem : item
+		);
+		console.log("PlaylistPage - Updated playlist:", updatedPlaylist);
+		setPlaylist(updatedPlaylist);
+		await savePlaylistToBackend(updatedPlaylist);
+		setEditingItem(null);
+	}
+
 	return (
 		<>
 			{/* ACTION BAR (Replaces buttons previously in Header) */}
@@ -189,7 +208,12 @@ export default function PlaylistPage() {
 			</div>
 
 			{/* PLAYLIST GRID */}
-			<PlaylistGrid playlist={playlist} isLoading={isLoading} onRemoveItem={removeItem} />
+			<PlaylistGrid
+				playlist={playlist}
+				isLoading={isLoading}
+				onRemoveItem={removeItem}
+				onEditItem={handleEditItem}
+			/>
 
 			{/* ADD PLUGIN MODAL */}
 			<Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Select Plugin">
@@ -231,6 +255,14 @@ export default function PlaylistPage() {
 					})}
 				</div>
 			</Modal>
+
+			{/* CONFIG MODAL */}
+			<ConfigModal
+				isOpen={editingItem !== null}
+				item={editingItem}
+				onClose={() => setEditingItem(null)}
+				onSave={handleSaveConfig}
+			/>
 		</>
 	);
 }

@@ -1,0 +1,14 @@
+{
+  "weather": {
+    "location": "Caldas da Rainha",
+    "latitude": 39.4062,
+    "longitude": -9.1364
+  },
+  "calendar": {
+    "icalUrl": "webcal://p44-caldav.icloud.com/published/2/MTA3MDE5MzE3NTEwNzAxOfbxYQxumWQA5JLlxu_YkxMJs0U6JGMg2PokG4AMxR-SPVesf2xcVMxm8A-Eg5Yf2L5exswSelj7yCnW5w-aG3g"
+  },
+  "system": {
+    "timezone": "Europe/Lisbon",
+    "refreshInterval": 30
+  }
+}
