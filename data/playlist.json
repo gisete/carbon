@@ -47,5 +47,16 @@
       "viewMode": "daily"
     },
     "lastUpdated": "Just now"
+  },
+  {
+    "id": "miknpz0jzgpz2cws75k",
+    "type": "custom-text",
+    "title": "Custom Text",
+    "subtitle": "No message set",
+    "scheduleMode": "cycle",
+    "config": {
+      "text": ""
+    },
+    "lastUpdated": "Just now"
   }
 ]

@@ -35,6 +35,7 @@ export interface WeatherData {
 	};
 	today: IpmaDailyForecast;
 	hourly: IpmaHourlyForecast[];
+	daily: IpmaDailyForecast[];
 	location: string;
 }
 
@@ -145,6 +146,7 @@ export async function getIpmaForecast(overrideHumidity?: string): Promise<Weathe
 			},
 			today: mapDaily(rawDaily[0]),
 			hourly: nextHours,
+			daily: rawDaily.map(mapDaily),
 			location: locationName, // Uses the name from Settings
 		};
 	} catch (error) {
