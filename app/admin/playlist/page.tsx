@@ -1,44 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Clock, ChevronDown, Cloud, CalendarDays, Type } from "lucide-react";
-import { fetchPlaylist, updatePlaylist } from "@/app/actions";
-import type { PlaylistItem } from "@/lib/playlist";
+import {
+	fetchPlaylistCollection,
+	updatePlaylistByIdAction,
+	createNewPlaylist,
+	fetchSettings,
+	tickDirector,
+	deletePlaylistById,
+} from "@/app/actions";
+import type { PlaylistItem, PlaylistCollection, Playlist } from "@/lib/playlist";
 import PlaylistGrid from "./components/PlaylistGrid";
-import Modal from "@/app/components/Modal";
 import ConfigModal from "./components/ConfigModal";
-
-// --- TYPES ---
-type PluginType = "weather" | "calendar" | "custom-text";
-
-interface PluginOption {
-	type: PluginType;
-	title: string;
-	description: string;
-	icon: React.ElementType;
-}
-
-// --- PLUGIN OPTIONS ---
-const PLUGIN_OPTIONS: PluginOption[] = [
-	{
-		type: "weather",
-		title: "Weather",
-		description: "Display current weather conditions",
-		icon: Cloud,
-	},
-	{
-		type: "calendar",
-		title: "Calendar",
-		description: "Show upcoming events from iCal",
-		icon: CalendarDays,
-	},
-	{
-		type: "custom-text",
-		title: "Custom Text",
-		description: "Display custom text message",
-		icon: Type,
-	},
-];
+import AddPlaylistModal from "./components/AddPlaylistModal";
+import PlaylistHeader from "./components/PlaylistHeader";
+import AddScreenButton from "./components/AddScreenButton";
+import ScreenSelectionModal, { type ScreenType } from "./components/ScreenSelectionModal";
 
 // --- HELPERS ---
 function generateId(): string {
@@ -47,38 +24,126 @@ function generateId(): string {
 
 // --- COMPONENT ---
 export default function PlaylistPage() {
-	const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
+	// Playlist collection state
+	const [collection, setCollection] = useState<PlaylistCollection | null>(null);
+	const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
-	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [editingItem, setEditingItem] = useState<PlaylistItem | null>(null);
 
-	// Load playlist
+	// Modal states
+	const [isScreenModalOpen, setIsScreenModalOpen] = useState(false);
+	const [isAddPlaylistModalOpen, setIsAddPlaylistModalOpen] = useState(false);
+	const [isEditPlaylistModalOpen, setIsEditPlaylistModalOpen] = useState(false);
+	const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null);
+	const [editingItem, setEditingItem] = useState<PlaylistItem | null>(null);
+	const [isNewItem, setIsNewItem] = useState(false);
+
+	// Active item tracking (synced with Director state)
+	const [activeItemId, setActiveItemId] = useState<string | null>(null);
+
+	// Get current selected playlist
+	const selectedPlaylist = collection?.playlists.find(p => p.id === selectedPlaylistId) || null;
+
+	// Load playlist collection
 	useEffect(() => {
-		async function loadPlaylist() {
+		async function loadData() {
 			try {
-				const data = await fetchPlaylist();
-				setPlaylist(data);
+				const collectionData = await fetchPlaylistCollection();
+				setCollection(collectionData);
+
+				// Set selected playlist to first available or active playlist
+				if (collectionData.playlists.length > 0) {
+					setSelectedPlaylistId(collectionData.playlists[0].id);
+				}
 			} catch (error) {
-				console.error("Failed to load playlist:", error);
+				console.error("Failed to load data:", error);
 			} finally {
 				setIsLoading(false);
 			}
 		}
-		loadPlaylist();
+		loadData();
 	}, []);
 
-	// Save playlist
-	async function savePlaylistToBackend(items: PlaylistItem[]) {
+	// Poll Director state every 5 seconds to sync active item
+	useEffect(() => {
+		async function pollDirectorState() {
+			try {
+				const status = await tickDirector();
+				// Set active item ID based on current item from director
+				setActiveItemId(status.currentItem?.id || null);
+			} catch (error) {
+				console.error("Failed to poll director state:", error);
+			}
+		}
+
+		// Poll immediately on mount
+		pollDirectorState();
+
+		// Set up interval for continuous polling
+		const intervalId = setInterval(pollDirectorState, 5000);
+
+		// Cleanup interval on unmount
+		return () => clearInterval(intervalId);
+	}, []);
+
+	// Save playlist items to backend
+	async function savePlaylistItems(items: PlaylistItem[]) {
+		if (!selectedPlaylistId) return;
+
 		try {
-			await updatePlaylist(items);
+			await updatePlaylistByIdAction(selectedPlaylistId, { items });
+
+			// Update local state
+			if (collection) {
+				const updatedPlaylists = collection.playlists.map(p =>
+					p.id === selectedPlaylistId ? { ...p, items } : p
+				);
+				setCollection({ ...collection, playlists: updatedPlaylists });
+			}
 		} catch (error) {
 			console.error("Failed to save playlist:", error);
 		}
 	}
 
-	// Add Plugin (Generic)
-	async function addPlugin(type: PluginType) {
+	// Save playlist schedule (time windows)
+	async function savePlaylistSchedule(newStartTime: string, newEndTime: string, playlistId?: string) {
+		const targetId = playlistId || selectedPlaylistId;
+		if (!targetId || !collection) return;
+
+		const targetPlaylist = collection.playlists.find(p => p.id === targetId);
+		if (!targetPlaylist) return;
+
+		try {
+			const updatedSchedule = {
+				...targetPlaylist.schedule,
+				startTime: newStartTime,
+				endTime: newEndTime,
+			};
+
+			await updatePlaylistByIdAction(targetId, { schedule: updatedSchedule });
+
+			// Update local state
+			const updatedPlaylists = collection.playlists.map(p =>
+				p.id === targetId ? { ...p, schedule: updatedSchedule } : p
+			);
+			setCollection({ ...collection, playlists: updatedPlaylists });
+		} catch (error) {
+			console.error("Failed to save playlist schedule:", error);
+			// Show error to user if it's a conflict
+			if (error instanceof Error) {
+				alert(error.message);
+				// Reload collection to reset UI to previous values
+				const collectionData = await fetchPlaylistCollection();
+				setCollection(collectionData);
+			}
+		}
+	}
+
+	// Add Screen (Generic) - Creates draft item and opens config modal
+	async function addScreen(type: ScreenType) {
 		let newItem: PlaylistItem;
+
+		// Fetch global settings to get default values
+		const settings = await fetchSettings();
 
 		switch (type) {
 			case "weather":
@@ -86,21 +151,22 @@ export default function PlaylistPage() {
 					id: generateId(),
 					type: "weather",
 					title: "Weather",
-					subtitle: "Coordinates: Not Set",
-					scheduleMode: "cycle",
-					config: { location: "", latitude: null, longitude: null },
+					subtitle: "Caldas da Rainha",
+					config: {},
 					lastUpdated: "Just now",
+					duration: 5,
 				};
 				break;
 			case "calendar":
+				const defaultIcalUrl = settings.calendar.icalUrl || "";
 				newItem = {
 					id: generateId(),
 					type: "calendar",
 					title: "Calendar",
-					subtitle: "No iCal URL configured",
-					scheduleMode: "cycle",
-					config: { icalUrl: "" },
+					subtitle: defaultIcalUrl ? "iCal URL configured" : "No iCal URL configured",
+					config: { icalUrl: defaultIcalUrl },
 					lastUpdated: "Just now",
+					duration: 5,
 				};
 				break;
 			case "custom-text":
@@ -109,159 +175,308 @@ export default function PlaylistPage() {
 					type: "custom-text",
 					title: "Custom Text",
 					subtitle: "No message set",
-					scheduleMode: "cycle",
 					config: { text: "" },
 					lastUpdated: "Just now",
+					duration: 5,
 				};
 				break;
 		}
 
-		const updatedPlaylist = [...playlist, newItem];
-		setPlaylist(updatedPlaylist);
-		await savePlaylistToBackend(updatedPlaylist);
-		setIsModalOpen(false);
+		// Close screen selection modal and open config modal with new item
+		setIsScreenModalOpen(false);
+		setIsNewItem(true);
+		setEditingItem(newItem);
 	}
 
-	// Remove Plugin
-	async function removeItem(id: string) {
-		const updatedPlaylist = playlist.filter((item) => item.id !== id);
-		setPlaylist(updatedPlaylist);
-		await savePlaylistToBackend(updatedPlaylist);
+	// Remove Screen
+	async function removeItem(id: string, playlistId?: string) {
+		if (!collection) return;
+
+		// Find which playlist contains this item
+		let targetPlaylist: Playlist | undefined;
+		if (playlistId) {
+			targetPlaylist = collection.playlists.find(p => p.id === playlistId);
+		} else {
+			// Search all playlists for the item
+			targetPlaylist = collection.playlists.find(p => p.items.some(item => item.id === id));
+		}
+
+		if (!targetPlaylist) return;
+
+		const updatedItems = targetPlaylist.items.filter((item) => item.id !== id);
+
+		try {
+			await updatePlaylistByIdAction(targetPlaylist.id, { items: updatedItems });
+
+			// Update local state
+			const updatedPlaylists = collection.playlists.map(p =>
+				p.id === targetPlaylist!.id ? { ...p, items: updatedItems } : p
+			);
+			setCollection({ ...collection, playlists: updatedPlaylists });
+		} catch (error) {
+			console.error("Failed to remove item:", error);
+		}
 	}
 
-	// Edit Plugin Configuration
+	// Toggle Item Visibility
+	async function toggleItemVisibility(id: string, playlistId?: string) {
+		if (!collection) return;
+
+		// Find which playlist contains this item
+		let targetPlaylist: Playlist | undefined;
+		if (playlistId) {
+			targetPlaylist = collection.playlists.find(p => p.id === playlistId);
+		} else {
+			// Search all playlists for the item
+			targetPlaylist = collection.playlists.find(p => p.items.some(item => item.id === id));
+		}
+
+		if (!targetPlaylist) return;
+
+		// Toggle the visibility
+		const updatedItems = targetPlaylist.items.map(item =>
+			item.id === id
+				? { ...item, visible: item.visible === false ? true : false }
+				: item
+		);
+
+		try {
+			await updatePlaylistByIdAction(targetPlaylist.id, { items: updatedItems });
+
+			// Update local state
+			const updatedPlaylists = collection.playlists.map(p =>
+				p.id === targetPlaylist!.id ? { ...p, items: updatedItems } : p
+			);
+			setCollection({ ...collection, playlists: updatedPlaylists });
+		} catch (error) {
+			console.error("Failed to toggle item visibility:", error);
+		}
+	}
+
+	// Reorder Screens
+	async function handleReorderItems(reorderedItems: PlaylistItem[], playlistId: string) {
+		try {
+			await updatePlaylistByIdAction(playlistId, { items: reorderedItems });
+
+			// Update local state
+			if (collection) {
+				const updatedPlaylists = collection.playlists.map(p =>
+					p.id === playlistId ? { ...p, items: reorderedItems } : p
+				);
+				setCollection({ ...collection, playlists: updatedPlaylists });
+			}
+		} catch (error) {
+			console.error("Failed to reorder items:", error);
+		}
+	}
+
+	// Edit Screen Configuration
 	function handleEditItem(item: PlaylistItem) {
 		setEditingItem(item);
 	}
 
 	// Save Configuration Changes
 	async function handleSaveConfig(updatedItem: PlaylistItem) {
-		console.log("PlaylistPage - Received updated item:", updatedItem);
-		const updatedPlaylist = playlist.map((item) =>
-			item.id === updatedItem.id ? updatedItem : item
-		);
-		console.log("PlaylistPage - Updated playlist:", updatedPlaylist);
-		setPlaylist(updatedPlaylist);
-		await savePlaylistToBackend(updatedPlaylist);
+		if (!selectedPlaylist) return;
+
+		let updatedItems: PlaylistItem[];
+
+		if (isNewItem) {
+			// Adding new item to playlist
+			updatedItems = [...selectedPlaylist.items, updatedItem];
+		} else {
+			// Updating existing item
+			updatedItems = selectedPlaylist.items.map((item) =>
+				item.id === updatedItem.id ? updatedItem : item
+			);
+		}
+
+		await savePlaylistItems(updatedItems);
 		setEditingItem(null);
+		setIsNewItem(false);
+	}
+
+	// Handle config modal close (cancel)
+	function handleCancelConfig() {
+		setEditingItem(null);
+		setIsNewItem(false);
+	}
+
+	// Handle adding a new playlist
+	async function handleAddPlaylist(name: string, isDefault: boolean = false, startTime: string = "00:00", endTime: string = "23:59") {
+		try {
+			const newPlaylist = await createNewPlaylist(name, {
+				type: "weekly",
+				activeDays: [0, 1, 2, 3, 4, 5, 6], // All days by default
+				startTime,
+				endTime,
+			}, isDefault);
+
+			// Refresh collection
+			const updatedCollection = await fetchPlaylistCollection();
+			setCollection(updatedCollection);
+
+			// Switch to the new playlist
+			setSelectedPlaylistId(newPlaylist.id);
+
+			setIsAddPlaylistModalOpen(false);
+		} catch (error) {
+			console.error("Failed to create playlist:", error);
+			// Show error to user if it's a conflict
+			if (error instanceof Error) {
+				alert(error.message);
+			}
+		}
+	}
+
+	// Handle editing a playlist
+	function handleEditPlaylist(playlistId: string) {
+		setEditingPlaylistId(playlistId);
+		setIsEditPlaylistModalOpen(true);
+	}
+
+	// Handle saving edited playlist
+	async function handleSaveEditPlaylist(name: string, isDefault: boolean = false, startTime: string = "00:00", endTime: string = "23:59") {
+		if (!editingPlaylistId) return;
+
+		try {
+			await updatePlaylistByIdAction(editingPlaylistId, {
+				name,
+				isDefault,
+				schedule: {
+					type: "weekly",
+					activeDays: [0, 1, 2, 3, 4, 5, 6],
+					startTime,
+					endTime,
+				},
+			});
+
+			// Refresh collection
+			const updatedCollection = await fetchPlaylistCollection();
+			setCollection(updatedCollection);
+
+			setIsEditPlaylistModalOpen(false);
+			setEditingPlaylistId(null);
+		} catch (error) {
+			console.error("Failed to update playlist:", error);
+			if (error instanceof Error) {
+				alert(error.message);
+			}
+		}
+	}
+
+	// Handle deleting a playlist
+	async function handleDeletePlaylist(playlistId: string) {
+		if (!collection) return;
+
+		const playlist = collection.playlists.find(p => p.id === playlistId);
+		if (!playlist) return;
+
+		// Confirm deletion
+		const confirmMessage = `Are you sure you want to delete "${playlist.name}"?`;
+		if (!confirm(confirmMessage)) return;
+
+		try {
+			await deletePlaylistById(playlistId);
+
+			// Refresh collection
+			const updatedCollection = await fetchPlaylistCollection();
+			setCollection(updatedCollection);
+		} catch (error) {
+			console.error("Failed to delete playlist:", error);
+			if (error instanceof Error) {
+				alert(error.message);
+			}
+		}
 	}
 
 	return (
 		<>
-			{/* ACTION BAR (Replaces buttons previously in Header) */}
-			<div className="flex justify-end gap-6 mb-8 pointer-events-none">
-				{/* Note: pointer-events-none with auto on children allows buttons to be clickable but lets clicks pass through the spacer */}
-				<div className="pointer-events-auto flex gap-6">
-					<button className="group flex items-center gap-2 text-xs font-mono tracking-widest hover:text-bright-blue transition-colors">
-						[ + ADD GROUP ]
-					</button>
-					<button
-						onClick={() => setIsModalOpen(true)}
-						className="group flex items-center gap-2 text-xs font-mono tracking-widest bg-bold-red text-white px-5 py-2 hover:bg-charcoal transition-colors shadow-sm"
-					>
-						<Plus className="w-3 h-3" />
-						ADD PLUGIN
-					</button>
-				</div>
+			{/* GLOBAL ACTION BAR - Add Playlist */}
+			<div className="flex justify-end gap-6 mb-12">
+				<button
+					onClick={() => setIsAddPlaylistModalOpen(true)}
+					className="group flex items-center gap-2 text-sm font-mono tracking-widest hover:text-bright-blue transition-colors cursor-pointer"
+				>
+					[ + ADD PLAYLIST ]
+				</button>
 			</div>
 
-			{/* TIMELINE CONTROLS */}
-			<div className="mb-12 pt-4">
-				<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 font-mono text-xs">
-					<div className="flex items-center gap-2">
-						<Clock className="w-3 h-3 text-bright-blue" />
-						<span className="uppercase tracking-widest font-bold text-bright-blue">Timeline Scope: All Day</span>
+			{/* ALL PLAYLISTS - Each displayed as a section */}
+			<div className="space-y-16">
+				{isLoading ? (
+					<div className="text-center py-12 font-mono text-sm text-warm-gray">Loading playlists...</div>
+				) : collection && collection.playlists.length === 0 ? (
+					<div className="text-center py-12 font-mono text-sm text-warm-gray">
+						No playlists yet. Click "ADD PLAYLIST" to get started.
 					</div>
-					{/* Technical Inputs */}
-					<div className="flex items-center gap-8 border-b border-light-gray pb-2 md:border-none md:pb-0">
-						<div className="flex items-center gap-3 group">
-							<label className="text-warm-gray uppercase group-hover:text-bright-blue transition-colors">Start</label>
-							<div className="relative">
-								<select className="appearance-none bg-transparent border-b border-warm-gray pr-6 py-1 focus:outline-none focus:border-bright-blue cursor-pointer font-medium text-charcoal">
-									<option>00:00</option>
-								</select>
-								<ChevronDown className="w-3 h-3 absolute right-0 top-1/2 -translate-y-1/2 text-warm-gray pointer-events-none" />
-							</div>
+				) : (
+					collection?.playlists.map((playlist) => (
+						<div key={playlist.id} className="space-y-6">
+							{/* PLAYLIST HEADER */}
+							<PlaylistHeader
+								playlist={playlist}
+								onScheduleChange={(startTime, endTime) => savePlaylistSchedule(startTime, endTime, playlist.id)}
+								onEdit={() => handleEditPlaylist(playlist.id)}
+								onDelete={() => handleDeletePlaylist(playlist.id)}
+							/>
+
+							{/* PLAYLIST GRID */}
+							<PlaylistGrid
+								playlist={playlist.items}
+								isLoading={false}
+								activeItemId={activeItemId}
+								onRemoveItem={removeItem}
+								onEditItem={handleEditItem}
+								onReorder={(reorderedItems) => handleReorderItems(reorderedItems, playlist.id)}
+								onToggleVisibility={(id) => toggleItemVisibility(id, playlist.id)}
+							/>
+
+							{/* ADD SCREEN BUTTON */}
+							<AddScreenButton
+								onClick={() => {
+									setSelectedPlaylistId(playlist.id);
+									setIsScreenModalOpen(true);
+								}}
+							/>
 						</div>
-						<span className="text-light-gray hidden md:inline">—</span>
-						<div className="flex items-center gap-3 group">
-							<label className="text-warm-gray uppercase group-hover:text-bright-blue transition-colors">End</label>
-							<div className="relative">
-								<select className="appearance-none bg-transparent border-b border-warm-gray pr-6 py-1 focus:outline-none focus:border-bright-blue cursor-pointer font-medium text-charcoal">
-									<option>23:45</option>
-								</select>
-								<ChevronDown className="w-3 h-3 absolute right-0 top-1/2 -translate-y-1/2 text-warm-gray pointer-events-none" />
-							</div>
-						</div>
-						<div className="w-px h-4 bg-light-gray hidden md:block"></div>
-						<div className="flex items-center gap-3 group">
-							<label className="text-warm-gray uppercase group-hover:text-bright-blue transition-colors">Cycle</label>
-							<div className="relative">
-								<select className="appearance-none bg-transparent border-b border-warm-gray pr-6 py-1 focus:outline-none focus:border-bright-blue cursor-pointer font-medium text-charcoal">
-									<option>15m</option>
-								</select>
-								<ChevronDown className="w-3 h-3 absolute right-0 top-1/2 -translate-y-1/2 text-warm-gray pointer-events-none" />
-							</div>
-						</div>
-					</div>
-				</div>
+					))
+				)}
 			</div>
 
-			{/* PLAYLIST GRID */}
-			<PlaylistGrid
-				playlist={playlist}
-				isLoading={isLoading}
-				onRemoveItem={removeItem}
-				onEditItem={handleEditItem}
+			{/* SCREEN SELECTION MODAL */}
+			<ScreenSelectionModal
+				isOpen={isScreenModalOpen}
+				onClose={() => setIsScreenModalOpen(false)}
+				onSelectScreen={addScreen}
 			/>
-
-			{/* ADD PLUGIN MODAL */}
-			<Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Select Plugin">
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-					{PLUGIN_OPTIONS.map((option) => {
-						const Icon = option.icon;
-						return (
-							<button
-								key={option.type}
-								onClick={() => addPlugin(option.type)}
-								className="group w-full bg-pure-white border border-light-gray p-4 text-left hover:border-bright-blue transition-all duration-200 flex items-center gap-4"
-							>
-								{/* Icon */}
-								<div className="flex-shrink-0">
-									<div className="inline-flex p-3 bg-off-white border border-light-gray rounded group-hover:border-bright-blue transition-colors">
-										<Icon className="w-6 h-6 text-charcoal group-hover:text-bright-blue transition-colors" />
-									</div>
-								</div>
-
-								{/* Content */}
-								<div className="flex-1">
-									{/* Title */}
-									<h3 className="text-lg text-charcoal mb-1 group-hover:text-bright-blue transition-colors">
-										{option.title}
-									</h3>
-
-									{/* Description */}
-									<p className="font-mono text-xs text-warm-gray uppercase tracking-wider">
-										{option.description}
-									</p>
-								</div>
-
-								{/* Plus indicator */}
-								<div className="flex-shrink-0 text-light-gray group-hover:text-bright-blue transition-colors">
-									<Plus className="w-5 h-5" />
-								</div>
-							</button>
-						);
-					})}
-				</div>
-			</Modal>
 
 			{/* CONFIG MODAL */}
 			<ConfigModal
 				isOpen={editingItem !== null}
 				item={editingItem}
-				onClose={() => setEditingItem(null)}
+				onClose={handleCancelConfig}
 				onSave={handleSaveConfig}
+			/>
+
+			{/* ADD PLAYLIST MODAL */}
+			<AddPlaylistModal
+				isOpen={isAddPlaylistModalOpen}
+				onClose={() => setIsAddPlaylistModalOpen(false)}
+				onSave={handleAddPlaylist}
+				allPlaylists={collection?.playlists || []}
+			/>
+
+			{/* EDIT PLAYLIST MODAL */}
+			<AddPlaylistModal
+				isOpen={isEditPlaylistModalOpen}
+				onClose={() => {
+					setIsEditPlaylistModalOpen(false);
+					setEditingPlaylistId(null);
+				}}
+				onSave={handleSaveEditPlaylist}
+				existingPlaylist={editingPlaylistId ? collection?.playlists.find(p => p.id === editingPlaylistId) : undefined}
+				allPlaylists={collection?.playlists || []}
 			/>
 		</>
 	);

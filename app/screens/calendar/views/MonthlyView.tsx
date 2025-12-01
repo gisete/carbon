@@ -110,17 +110,20 @@ export default function MonthlyView({ events }: MonthlyViewProps) {
 											</span>
 										)}
 
-										{/* Event Dots (Apple Calendar year view style - dots only, no titles) */}
+										{/* Event Titles (truncated) */}
 										{isCurrentMonth && dayEvents.length > 0 && (
-											<div className="flex gap-1 flex-wrap mt-1">
-												{dayEvents.slice(0, 5).map((_, eventIdx) => (
+											<div className="flex flex-col gap-0.5 mt-1 overflow-hidden">
+												{dayEvents.slice(0, 3).map((event, eventIdx) => (
 													<div
 														key={eventIdx}
-														className="w-1.5 h-1.5 rounded-full bg-black flex-shrink-0"
-													/>
+														className="text-[9px] leading-tight text-black bg-gray-100 px-1 py-0.5 rounded truncate"
+														title={event.title}
+													>
+														{event.title}
+													</div>
 												))}
-												{dayEvents.length > 5 && (
-													<span className="text-[8px] text-gray-500">+{dayEvents.length - 5}</span>
+												{dayEvents.length > 3 && (
+													<span className="text-[8px] text-gray-500">+{dayEvents.length - 3} more</span>
 												)}
 											</div>
 										)}

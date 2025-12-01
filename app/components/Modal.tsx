@@ -7,10 +7,11 @@ interface ModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	title: string;
+	subtitle?: string;
 	children: React.ReactNode;
 }
 
-export default function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, subtitle, children }: ModalProps) {
 	// Handle ESC key to close modal
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
@@ -19,7 +20,6 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
 
 		if (isOpen) {
 			document.addEventListener("keydown", handleEscape);
-			// Prevent body scroll when modal is open
 			document.body.style.overflow = "hidden";
 		}
 
@@ -33,27 +33,34 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-			{/* Backdrop */}
+			{/* Backdrop - White with blur for Carbon aesthetic */}
 			<div
-				className="absolute inset-0 bg-charcoal/40 backdrop-blur-sm"
+				className="absolute inset-0 bg-white/85 backdrop-blur-sm"
 				onClick={onClose}
 			/>
 
 			{/* Modal Content */}
-			<div className="relative bg-pure-white border border-light-gray shadow-md w-full max-w-4xl max-h-[90vh] flex flex-col">
+			<div className="relative bg-white border border-light-gray w-full max-h-[90vh] overflow-hidden" style={{ maxWidth: "672px", boxShadow: "0 15px 50px rgba(0,0,0,0.1)" }}>
 				{/* Header */}
-				<div className="flex items-center justify-between border-b border-light-gray p-6 flex-shrink-0">
-					<h2 className="text-2xl text-charcoal">{title}</h2>
+				<div className="flex items-start justify-between pt-8 px-10 pb-6 border-b border-light-gray">
+					<div>
+						<h2 className="text-2xl font-normal text-charcoal">{title}</h2>
+						{subtitle && (
+							<span className="block font-mono text-warm-gray text-[11px] tracking-wider mt-2 uppercase">
+								{subtitle}
+							</span>
+						)}
+					</div>
 					<button
 						onClick={onClose}
-						className="text-warm-gray hover:text-charcoal transition-colors"
+						className="text-2xl text-warm-gray hover:text-bold-red transition-colors leading-none -mt-1 cursor-pointer"
 					>
-						<X className="w-5 h-5" />
+						×
 					</button>
 				</div>
 
 				{/* Body */}
-				<div className="p-6 overflow-y-auto flex-1">
+				<div className="px-10 py-8 overflow-y-auto" style={{ maxHeight: "calc(90vh - 140px)" }}>
 					{children}
 				</div>
 			</div>

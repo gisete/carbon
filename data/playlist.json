@@ -1,62 +1,94 @@
-[
-  {
-    "id": "1",
-    "type": "weather",
-    "title": "Weather",
-    "subtitle": "Coordinates: My Town",
-    "scheduleMode": "fixed-time",
-    "startTime": "08:00",
-    "endTime": "09:00",
-    "config": {
-      "location": "My Town",
-      "latitude": 40.7128,
-      "longitude": -74.006
+{
+  "playlists": [
+    {
+      "id": "default",
+      "name": "Default Playlist",
+      "schedule": {
+        "type": "weekly",
+        "activeDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTime": "00:00",
+        "endTime": "23:59"
+      },
+      "items": [
+        {
+          "id": "mikxp98l179cgq50l6k",
+          "type": "calendar",
+          "title": "Family Calendar",
+          "subtitle": "iCal URL configured",
+          "config": {
+            "icalUrl": "webcal://p44-caldav.icloud.com/published/2/MTA3MDE5MzE3NTEwNzAxOfbxYQxumWQA5JLlxu_YkxMJs0U6JGMg2PokG4AMxR-SPVesf2xcVMxm8A-Eg5Yf2L5exswSelj7yCnW5w-aG3g",
+            "viewMode": "monthly"
+          },
+          "lastUpdated": "Just now",
+          "duration": 5,
+          "visible": true
+        },
+        {
+          "id": "minjol83mhtqobbxx4f",
+          "type": "custom-text",
+          "title": "Custom Text",
+          "subtitle": "Message configured",
+          "config": {
+            "text": "test"
+          },
+          "lastUpdated": "Just now",
+          "duration": 5,
+          "visible": true
+        },
+        {
+          "id": "minjorp02v5kccym5es",
+          "type": "custom-text",
+          "title": "Custom Text",
+          "subtitle": "No message set",
+          "config": {
+            "text": ""
+          },
+          "lastUpdated": "Just now",
+          "duration": 5
+        }
+      ],
+      "isDefault": true
     },
-    "lastUpdated": "Just now"
-  },
-  {
-    "id": "mikde1h2gklidy2iaj",
-    "type": "custom-text",
-    "title": "Custom Text",
-    "subtitle": "No message set",
-    "scheduleMode": "cycle",
-    "config": {
-      "text": ""
-    },
-    "lastUpdated": "Just now"
-  },
-  {
-    "id": "mikde9zmzcwjk491fp",
-    "type": "custom-text",
-    "title": "Custom Text",
-    "subtitle": "No message set",
-    "scheduleMode": "cycle",
-    "config": {
-      "text": ""
-    },
-    "lastUpdated": "Just now"
-  },
-  {
-    "id": "mikfm6ifopv3mbngul",
-    "type": "calendar",
-    "title": "Calendar",
-    "subtitle": "iCal URL configured",
-    "scheduleMode": "cycle",
-    "config": {
-      "icalUrl": "https://p44-caldav.icloud.com/published/2/MTA3MDE5MzE3NTEwNzAxOfbxYQxumWQA5JLlxu_YkxMJs0U6JGMg2PokG4AMxR-SPVesf2xcVMxm8A-Eg5Yf2L5exswSelj7yCnW5w-aG3g",
-      "viewMode": "daily"
-    },
-    "lastUpdated": "Just now"
-  },
-  {
-    "id": "miknpz0jzgpz2cws75k",
-    "type": "custom-text",
-    "title": "Custom Text",
-    "subtitle": "No message set",
-    "scheduleMode": "cycle",
-    "config": {
-      "text": ""
-    },
-    "lastUpdated": "Just now"
-  }
-]
+    {
+      "id": "mim5f6shwcrke3xng9r",
+      "name": "Test",
+      "schedule": {
+        "type": "weekly",
+        "activeDays": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "startTime": "06:45",
+        "endTime": "10:00"
+      },
+      "items": [
+        {
+          "id": "mim5fbvid8thmjhp9bo",
+          "type": "custom-text",
+          "title": "Custom Text",
+          "subtitle": "Message configured",
+          "config": {
+            "text": "Helloo"
+          },
+          "lastUpdated": "Just now",
+          "duration": 5
+        }
+      ],
+      "isDefault": false
+    }
+  ],
+  "activePlaylistId": null
+}

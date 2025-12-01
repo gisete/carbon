@@ -9,6 +9,8 @@
   },
   "system": {
     "timezone": "Europe/Lisbon",
-    "refreshInterval": 30
+    "refreshInterval": 5,
+    "startTime": "00:00",
+    "endTime": "23:59"
   }
 }

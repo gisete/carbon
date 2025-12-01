@@ -27,16 +27,9 @@ export default async function CalendarScreen({ searchParams }: CalendarScreenPro
 	const icalUrl = calendarItem?.config?.icalUrl;
 	const configView = calendarItem?.config?.viewMode;
 
-	console.log("Calendar Screen - Plugin ID:", pluginId);
-	console.log("Calendar Screen - Calendar Item:", calendarItem);
-	console.log("Calendar Screen - iCal URL:", icalUrl);
-	console.log("Calendar Screen - View Mode from config:", configView);
-	console.log("Calendar Screen - View Mode from URL:", viewParam);
-
 	// Priority: URL parameter > config setting > default
 	// This allows URL to override the saved view mode for testing/flexibility
 	const finalViewParam = viewParam || configView || "daily";
-	console.log("Calendar Screen - Final view mode:", finalViewParam);
 
 	// Validate view parameter
 	const validViews: CalendarView[] = ["daily", "weekly", "monthly"];

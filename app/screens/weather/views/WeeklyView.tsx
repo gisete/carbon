@@ -101,7 +101,7 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 
 				{/* Forecast List */}
 				<div className="flex-1">
-					{data.daily.slice(0, 7).map((day, index) => {
+					{data.daily.slice(1, 8).map((day, index) => {
 						const IconComponent = getIpmaIcon(day.idWeatherType);
 						const precipProb = parseInt(day.precipitaProb);
 

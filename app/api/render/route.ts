@@ -1,18 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import puppeteer from "puppeteer";
 import sharp from "sharp";
+import { getCurrentItem, advanceCycle } from "@/lib/director";
+import type { PlaylistItem } from "@/lib/playlist";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Build URL for screen based on playlist item
+ */
+function buildScreenUrl(item: PlaylistItem): string {
+	const baseUrl = "http://localhost:3000/screens";
+
+	switch (item.type) {
+		case "weather":
+			const weatherView = item.config?.viewMode || "current";
+			return `${baseUrl}/weather?view=${weatherView}`;
+		case "calendar":
+			const calendarView = item.config?.viewMode || "daily";
+			return `${baseUrl}/calendar?view=${calendarView}`;
+		case "custom-text":
+			return `${baseUrl}/custom-text?text=${encodeURIComponent(item.config?.text || "")}`;
+		default:
+			return `${baseUrl}/weather`;
+	}
+}
+
 export async function GET(req: NextRequest) {
 	const searchParams = req.nextUrl.searchParams;
-	const screenName = searchParams.get("screen") || "weather";
+	const screenParam = searchParams.get("screen");
 
-	// 1. CAPTURE THE HUMIDITY PARAM
-	const humidityParam = searchParams.get("humidity") || "";
+	let targetUrl: string;
 
-	// 2. PASS IT TO THE INTERNAL URL
-	const targetUrl = `http://localhost:3000/screens/${screenName}?humidity=${humidityParam}`;
+	// Manual override: if screen param is provided, use it directly
+	if (screenParam) {
+		const humidityParam = searchParams.get("humidity") || "";
+		targetUrl = `http://localhost:3000/screens/${screenParam}?humidity=${humidityParam}`;
+	} else {
+		// Director mode: get current item from playlist rotation
+		const currentItem = await getCurrentItem();
+
+		if (!currentItem) {
+			console.error("[Render API] No item available from director");
+			return NextResponse.json({ error: "No screens available in playlist" }, { status: 404 });
+		}
+
+		targetUrl = buildScreenUrl(currentItem);
+
+		// Advance cycle for next render (ESP32 will call this endpoint periodically)
+		await advanceCycle();
+	}
 
 	try {
 		const browser = await puppeteer.launch({

@@ -14,7 +14,9 @@ export interface Settings {
 	};
 	system: {
 		timezone: string;
-		refreshInterval: number;
+		refreshInterval: number; // Global default cycle time (minutes)
+		startTime: string;        // "00:00" - when playlist starts
+		endTime: string;          // "23:45" - when playlist ends
 	};
 }
 
@@ -36,7 +38,9 @@ const DEFAULT_SETTINGS: Settings = {
 	},
 	system: {
 		timezone: "Europe/Lisbon",
-		refreshInterval: 30,
+		refreshInterval: 5,      // Default: 5 minutes per item
+		startTime: "00:00",      // Playlist active all day by default
+		endTime: "23:45",
 	},
 };
 

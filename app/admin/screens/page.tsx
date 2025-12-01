@@ -107,6 +107,8 @@ export default function ScreensConfig() {
 
 	const handleSave = async () => {
 		try {
+			// Fetch current settings to preserve startTime/endTime (managed on playlist page)
+			const currentSettings = await fetchSettings();
 			await updateSettings({
 				weather: {
 					location: weatherConfig.locationName,
@@ -119,6 +121,8 @@ export default function ScreensConfig() {
 				system: {
 					timezone: systemConfig.timezone,
 					refreshInterval: parseInt(systemConfig.refreshInterval),
+					startTime: currentSettings.system.startTime,
+					endTime: currentSettings.system.endTime,
 				},
 			});
 			console.log("Settings saved successfully");

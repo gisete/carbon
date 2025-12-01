@@ -1,4 +1,5 @@
 import { getIpmaForecast } from "@/lib/ipma";
+import { getPlaylist } from "@/lib/playlist";
 import CurrentView from "./views/CurrentView";
 import WeeklyView from "./views/WeeklyView";
 
@@ -8,19 +9,33 @@ interface WeatherScreenProps {
 	searchParams: Promise<{
 		humidity?: string;
 		view?: string;
+		pluginId?: string;
 	}>;
 }
 
 export default async function WeatherScreen({ searchParams }: WeatherScreenProps) {
 	// Await and parse search params
 	const params = await searchParams;
-	const viewParam = params.view || "current";
+	const viewParam = params.view;
 	const humidityOverride = params.humidity;
+	const pluginId = params.pluginId;
+
+	// Get playlist to find weather config
+	const playlist = await getPlaylist();
+	const weatherItem = pluginId
+		? playlist.find((item) => item.id === pluginId && item.type === "weather")
+		: playlist.find((item) => item.type === "weather");
+
+	// Get view mode from config
+	const configView = weatherItem?.config?.viewMode;
+
+	// Priority: URL parameter > config setting > default
+	const finalViewParam = viewParam || configView || "current";
 
 	// Validate view parameter
 	const validViews: WeatherView[] = ["current", "weekly"];
-	const view: WeatherView = validViews.includes(viewParam as WeatherView)
-		? (viewParam as WeatherView)
+	const view: WeatherView = validViews.includes(finalViewParam as WeatherView)
+		? (finalViewParam as WeatherView)
 		: "current";
 
 	// Fetch real data (passing the humidity override if present)

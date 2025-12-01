@@ -105,8 +105,6 @@ export async function getCalendarEvents(
 		// Normalize the URL (add /webcal for iCloud URLs)
 		calendarUrl = normalizeCalendarUrl(calendarUrl);
 
-		console.log(`Fetching calendar from: ${calendarUrl}`);
-
 		// Fetch the iCal feed with Next.js caching (15 minutes)
 		const response = await fetch(calendarUrl, {
 			next: { revalidate: 900 },
@@ -117,8 +115,6 @@ export async function getCalendarEvents(
 				Expires: "0",
 			},
 		});
-
-		console.log(`Calendar fetch response: ${response.status} ${response.statusText}`);
 
 		if (!response.ok) {
 			console.error(`Failed to fetch calendar from ${calendarUrl}: ${response.status} ${response.statusText}`);
