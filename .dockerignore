@@ -1,0 +1,22 @@
+# Ignore dependencies (they are installed inside the container)
+node_modules
+.npm
+npm-debug.log
+
+# Ignore build output
+.next
+out
+build
+dist
+
+# Ignore version control
+.git
+.gitignore
+
+# CRITICAL: Ignore ESPHome config to fix the permission error
+esphome_config
+
+# Ignore Docker files
+Dockerfile
+compose.yaml
+.dockerignore
