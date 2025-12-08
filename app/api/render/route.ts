@@ -9,7 +9,6 @@ export const dynamic = "force-dynamic";
 
 /**
  * Helper to determine if we are in "Night Mode" (outside active hours)
- * Logic duplicated from director to ensure availability here
  */
 function isNightMode(startTime: string, endTime: string): boolean {
 	const now = new Date();
@@ -55,8 +54,6 @@ function buildScreenUrl(item: PlaylistItem | null): string {
 	const baseUrl = "http://localhost:3000/screens";
 
 	if (!item) {
-		// If no item (e.g. night mode), show a generic "Sleeping" or "Weather" screen
-		// You can create a dedicated /screens/sleep page later if you want
 		return `${baseUrl}/weather?view=current`;
 	}
 
@@ -75,7 +72,7 @@ function buildScreenUrl(item: PlaylistItem | null): string {
 export async function GET(req: NextRequest) {
 	const searchParams = req.nextUrl.searchParams;
 
-	// 1. Get Context (Battery & Screen)
+	// 1. Get Context
 	const batteryParam = searchParams.get("battery");
 	const batteryLevel = batteryParam ? parseInt(batteryParam) : null;
 	const screenParam = searchParams.get("screen");
@@ -85,26 +82,21 @@ export async function GET(req: NextRequest) {
 	const isNight = isNightMode(settings.system.startTime, settings.system.endTime);
 
 	let targetUrl: string;
-	let itemDuration = settings.system.refreshInterval; // Default global interval
+	let itemDuration = settings.system.refreshInterval;
 
 	// 3. Resolve Target URL
 	if (screenParam) {
-		// Manual Override (Testing)
 		const humidityParam = searchParams.get("humidity") || "";
 		targetUrl = `http://localhost:3000/screens/${screenParam}?humidity=${humidityParam}`;
 	} else {
-		// Director Mode (Automatic)
 		const currentItem = await getCurrentItem();
 
-		// If Director returns null, force Night Mode behavior
 		if (!currentItem) {
-			console.log("[Render] No active item from Director (likely Night Mode)");
-			// Render the default screen (or a specific sleep screen)
+			console.log("[Render] No active item from Director (Night Mode or Empty)");
 			targetUrl = buildScreenUrl(null);
 		} else {
 			targetUrl = buildScreenUrl(currentItem);
 			itemDuration = currentItem.duration || itemDuration;
-			// Advance cycle only if we found an item
 			await advanceCycle();
 		}
 	}
@@ -113,21 +105,27 @@ export async function GET(req: NextRequest) {
 	const sleepSeconds = calculateSleepDuration(itemDuration, batteryLevel, isNight);
 
 	try {
+		// --- CRITICAL CHANGE: Use System Chromium ---
 		const browser = await puppeteer.launch({
 			headless: true,
-			args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-infobars"],
+			executablePath: "/usr/bin/chromium-browser", // <--- Points to Alpine Chromium
+			args: [
+				"--no-sandbox",
+				"--disable-setuid-sandbox",
+				"--disable-infobars",
+				"--disable-gpu", // Often helps in Docker
+				"--disable-dev-shm-usage", // Helps with memory in Docker
+			],
 			ignoreDefaultArgs: ["--enable-automation"],
 		});
 
 		const page = await browser.newPage();
 		await page.setViewport({ width: 800, height: 480, deviceScaleFactor: 1 });
 
-		// Pass battery info to the page in case you want to display it visually later
 		const pageUrl = new URL(targetUrl);
 		if (batteryLevel) pageUrl.searchParams.set("battery", batteryLevel.toString());
-		if (isNight) pageUrl.searchParams.set("mode", "night");
 
-		await page.goto(pageUrl.toString(), { waitUntil: "networkidle0", timeout: 5000 });
+		await page.goto(pageUrl.toString(), { waitUntil: "networkidle0", timeout: 8000 });
 
 		const screenshotBuffer = await page.screenshot({ type: "png" });
 		await browser.close();
@@ -138,17 +136,15 @@ export async function GET(req: NextRequest) {
 			.png({ palette: true, colors: 2, dither: 1.0 })
 			.toBuffer();
 
-		// 5. Return Image with Sleep Header
 		return new NextResponse(ditheredBuffer as any, {
 			headers: {
 				"Content-Type": "image/png",
 				"Cache-Control": "no-store, max-age=0",
-				// This is the magic header the ESP32 will read
 				"X-Sleep-Seconds": sleepSeconds.toString(),
 			},
 		});
 	} catch (error) {
 		console.error("Renderer Error:", error);
-		return NextResponse.json({ error: "Failed" }, { status: 500 });
+		return NextResponse.json({ error: "Failed to render image" }, { status: 500 });
 	}
 }
