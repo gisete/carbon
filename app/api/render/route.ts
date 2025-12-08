@@ -136,9 +136,12 @@ export async function GET(req: NextRequest) {
 			.png({ palette: true, colors: 2, dither: 1.0 })
 			.toBuffer();
 
+		const fileSize = ditheredBuffer.length.toString();
+
 		return new NextResponse(ditheredBuffer as any, {
 			headers: {
 				"Content-Type": "image/png",
+				"Content-Length": fileSize,
 				"Cache-Control": "no-store, max-age=0",
 				"X-Sleep-Seconds": sleepSeconds.toString(),
 			},
