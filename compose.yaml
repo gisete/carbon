@@ -1,0 +1,14 @@
+services:
+  carbon-app:
+    container_name: carbon
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # CRITICAL: Set Timezone for your Dynamic Sleep logic
+      # Change this to your local timezone (e.g., Europe/Lisbon)
+      - TZ=Europe/Lisbon
