@@ -1,4 +1,5 @@
 services:
+  # Your existing Carbon App
   carbon-app:
     container_name: carbon
     build:
@@ -9,6 +10,20 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      # CRITICAL: Set Timezone for your Dynamic Sleep logic
-      # Change this to your local timezone (e.g., Europe/Lisbon)
       - TZ=Europe/Lisbon
+
+  # --- ADD THIS SECTION ---
+  esphome:
+    container_name: esphome
+    image: ghcr.io/esphome/esphome
+    volumes:
+      - ./esphome_config:/config
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "6052:6052"
+    restart: always
+    # 'privileged' allows the container to see USB devices for flashing
+    privileged: true
+    environment:
+      - USERNAME=admin # Optional: secures the dashboard
+      - PASSWORD=password # Optional: secures the dashboard
