@@ -32,7 +32,15 @@ function buildScreenUrl(item: PlaylistItem | null): string {
  * GENERATOR
  */
 async function generateImage(batteryLevel: number | null, screenParam: string | null, humidityParam: string | null) {
-	if (isGenerating) return;
+	if (isGenerating) {
+		console.log("[Render] Already generating, waiting...");
+		// Wait for current generation to complete
+		while (isGenerating) {
+			await new Promise((resolve) => setTimeout(resolve, 100));
+		}
+		return;
+	}
+
 	isGenerating = true;
 	console.log("[Render] Starting generation...");
 
@@ -82,10 +90,10 @@ async function generateImage(batteryLevel: number | null, screenParam: string | 
 
 		lastGeneratedTime = Date.now();
 
-		// 2. Advance the cycle AFTER capture
+		// 2. Advance the cycle AFTER capture (only for real playlist items, not manual screens)
 		if (!screenParam) {
 			await advanceCycle();
-			console.log("[Render] Cycle advanced.");
+			console.log("[Render] Cycle advanced to next item.");
 		}
 
 		console.log("[Render] Generation complete.");
@@ -102,24 +110,16 @@ export async function GET(req: NextRequest) {
 	const screenParam = searchParams.get("screen");
 	const humidityParam = searchParams.get("humidity");
 
-	// --- LOGIC CHANGE: Generate on Demand ---
-	// If the cache is older than 60 seconds (or doesn't exist), generate NEW content.
-	const isStale = !imageCache || Date.now() - lastGeneratedTime > 60 * 1000;
-
-	if (isStale) {
-		console.log("[Render] Cache stale/empty. Generating FRESH image...");
-		// Await the generation so we serve FRESH content
-		await generateImage(batteryLevel, screenParam, humidityParam);
-	} else {
-		console.log("[Render] Serving valid cache.");
-	}
+	// CRITICAL: Always generate fresh image on demand for the device
+	// The device only calls this once per wake cycle, so we need fresh content
+	console.log("[Render] Device requesting image, generating fresh content...");
+	await generateImage(batteryLevel, screenParam, humidityParam);
 
 	if (!imageCache) {
 		return NextResponse.json({ error: "Generation failed" }, { status: 500 });
 	}
 
-	// We don't strictly need the sleep header here anymore since the separate API handles it,
-	// but we return the image buffer.
+	// Return the fresh image with no-cache headers
 	return new NextResponse(imageCache as any, {
 		headers: {
 			"Content-Type": "image/png",
