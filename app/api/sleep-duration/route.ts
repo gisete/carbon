@@ -26,11 +26,7 @@ function isNightMode(startTime: string, endTime: string): boolean {
 /**
  * Calculate how long the ESP32 should sleep (in seconds)
  */
-function calculateSleepDuration(
-	itemDurationMinutes: number,
-	batteryLevel: number | null,
-	isNight: boolean
-): number {
+function calculateSleepDuration(itemDurationMinutes: number, batteryLevel: number | null, isNight: boolean): number {
 	// 1. Critical Battery (< 20%) -> Sleep 2 hours (7200s)
 	if (batteryLevel !== null && batteryLevel < 20) {
 		console.log(`[Sleep Logic] Critical Battery (${batteryLevel}%). Sleeping 2 hours.`);
@@ -69,17 +65,36 @@ export async function GET(req: NextRequest) {
 		// Calculate sleep duration
 		const sleepSeconds = calculateSleepDuration(itemDuration, batteryLevel, isNight);
 
-		// Return response
-		return NextResponse.json({
+		// Prepare the data object
+		const data = {
 			sleepSeconds,
 			currentItem: currentItem?.title || "None",
 			isNight,
+		};
+
+		// --- FIX: Explicitly serialize and set Content-Length ---
+		const jsonString = JSON.stringify(data);
+
+		return new NextResponse(jsonString, {
+			status: 200,
+			headers: {
+				"Content-Type": "application/json",
+				"Content-Length": Buffer.byteLength(jsonString).toString(),
+			},
 		});
 	} catch (error) {
 		console.error("[Sleep Duration API] Error:", error);
-		return NextResponse.json(
-			{ error: "Failed to calculate sleep duration" },
-			{ status: 500 }
-		);
+
+		// Even for errors, try to return a valid length if possible, or just standard json
+		const errorData = { error: "Failed to calculate sleep duration" };
+		const errorString = JSON.stringify(errorData);
+
+		return new NextResponse(errorString, {
+			status: 500,
+			headers: {
+				"Content-Type": "application/json",
+				"Content-Length": Buffer.byteLength(errorString).toString(),
+			},
+		});
 	}
 }
