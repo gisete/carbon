@@ -18,7 +18,7 @@ function getPluginIcon(type: string) {
 
 // Build URL for screen
 function buildScreenUrl(item: PlaylistItem): string {
-	const baseUrl = "http://localhost:3000/screens";
+	const baseUrl = `${window.location.origin}/screens`;
 
 	switch (item.type) {
 		case "weather":

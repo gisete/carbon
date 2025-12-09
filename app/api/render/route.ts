@@ -51,7 +51,7 @@ function calculateSleepDuration(itemDurationMinutes: number, batteryLevel: numbe
  * Build URL for screen based on playlist item
  */
 function buildScreenUrl(item: PlaylistItem | null): string {
-	const baseUrl = "http://localhost:3000/screens";
+	const baseUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/screens`;
 
 	if (!item) {
 		return `${baseUrl}/weather?view=current`;
@@ -87,7 +87,8 @@ export async function GET(req: NextRequest) {
 	// 3. Resolve Target URL
 	if (screenParam) {
 		const humidityParam = searchParams.get("humidity") || "";
-		targetUrl = `http://localhost:3000/screens/${screenParam}?humidity=${humidityParam}`;
+		const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+		targetUrl = `${baseUrl}/screens/${screenParam}?humidity=${humidityParam}`;
 	} else {
 		const currentItem = await getCurrentItem();
 
