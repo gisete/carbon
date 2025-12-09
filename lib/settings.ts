@@ -76,10 +76,28 @@ export async function getSettings(): Promise<Settings> {
 }
 
 /**
- * Saves the settings to the JSON file.
+ * Saves the settings to the JSON file using atomic write.
  * Creates the data directory if it doesn't exist.
+ * Uses a temporary file to prevent race conditions during write.
  */
 export async function saveSettings(settings: Settings): Promise<void> {
 	await ensureDataDir();
-	await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), "utf-8");
+
+	// Use atomic write: write to temp file, then rename
+	const tempFile = SETTINGS_FILE + ".tmp";
+	const jsonData = JSON.stringify(settings, null, 2);
+
+	try {
+		await fs.writeFile(tempFile, jsonData, "utf-8");
+		await fs.rename(tempFile, SETTINGS_FILE);
+	} catch (error) {
+		// Clean up temp file if it exists
+		try {
+			await fs.unlink(tempFile);
+		} catch {
+			// Ignore cleanup errors
+		}
+		console.error("[Settings] Failed to save settings:", error);
+		throw error;
+	}
 }

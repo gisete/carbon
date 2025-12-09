@@ -263,6 +263,7 @@ export async function savePlaylistCollection(collection: PlaylistCollection): Pr
   try {
     await fs.writeFile(tempFile, jsonData, 'utf-8');
     await fs.rename(tempFile, PLAYLIST_FILE);
+    console.log('[Playlist] Successfully saved playlist collection');
   } catch (error) {
     // Clean up temp file if it exists
     try {
@@ -270,6 +271,7 @@ export async function savePlaylistCollection(collection: PlaylistCollection): Pr
     } catch {
       // Ignore cleanup errors
     }
+    console.error('[Playlist] Failed to save playlist collection:', error);
     throw error;
   }
 }

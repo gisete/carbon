@@ -77,11 +77,29 @@ async function getState(): Promise<DirectorState> {
 }
 
 /**
- * Saves the director state to state.json.
+ * Saves the director state to state.json using atomic write.
+ * Uses a temporary file to prevent race conditions during write.
  */
 async function saveState(state: DirectorState): Promise<void> {
   await ensureDataDir();
-  await fs.writeFile(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+
+  // Use atomic write: write to temp file, then rename
+  const tempFile = STATE_FILE + '.tmp';
+  const jsonData = JSON.stringify(state, null, 2);
+
+  try {
+    await fs.writeFile(tempFile, jsonData, 'utf-8');
+    await fs.rename(tempFile, STATE_FILE);
+  } catch (error) {
+    // Clean up temp file if it exists
+    try {
+      await fs.unlink(tempFile);
+    } catch {
+      // Ignore cleanup errors
+    }
+    console.error('[Director] Failed to save state:', error);
+    throw error;
+  }
 }
 
 // --- TIME HELPERS ---
