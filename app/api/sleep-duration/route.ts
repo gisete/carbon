@@ -25,7 +25,7 @@ function isNightMode(startTime: string, endTime: string): boolean {
 
 /**
  * 2. SYNCED SLEEP CALCULATION
- * Calculates seconds remaining until the next switch based on Director's state.
+ * Calculates seconds to sleep so device wakes AFTER the Director switches.
  */
 function calculateSyncedSleep(directorNextSwitchTime: number, batteryLevel: number | null, isNight: boolean): number {
 	// A. Critical Battery (< 20%) -> Sleep 2 hours (7200s)
@@ -40,17 +40,16 @@ function calculateSyncedSleep(directorNextSwitchTime: number, batteryLevel: numb
 		return 3600;
 	}
 
-	// C. Day Mode -> Use Director's next switch time
+	// C. Day Mode -> Wake AFTER Director switches (add 5s buffer)
 	const now = Date.now();
 	const sleepMs = Math.max(0, directorNextSwitchTime - now);
 	let sleepSeconds = Math.floor(sleepMs / 1000);
 
-	// Add buffer time for device wake/render (20 seconds)
-	// This ensures the device wakes up slightly before the switch time
-	sleepSeconds = Math.max(30, sleepSeconds - 20);
+	// Add 5 seconds AFTER the switch to ensure Director has advanced
+	sleepSeconds = Math.max(10, sleepSeconds + 5);
 
 	console.log(
-		`[Sleep] Calculated sleep: ${sleepSeconds}s (Director switches in ${Math.floor(sleepMs / 1000)}s, waking 20s early)`
+		`[Sleep] Calculated sleep: ${sleepSeconds}s (Director switches in ${Math.floor(sleepMs / 1000)}s, waking 5s after)`
 	);
 
 	return sleepSeconds;
