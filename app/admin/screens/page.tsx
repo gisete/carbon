@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Save, Cloud, CalendarDays, Settings2, MapPin, Globe, Clock, ArrowLeft } from "lucide-react";
+import { Save, Cloud, CalendarDays, Settings2, MapPin, Globe, Clock, ArrowLeft, Moon, Sun } from "lucide-react";
 import { usePlugin } from "../contexts/PluginContext";
 import { fetchSettings, updateSettings } from "@/app/actions";
 
 // --- TYPES ---
 
-type PluginType = 'weather' | 'calendar' | 'system' | null;
+type PluginType = "weather" | "calendar" | "system" | null;
 
 interface WeatherConfig {
 	locationName: string;
@@ -22,6 +22,8 @@ interface CalendarConfig {
 interface SystemConfig {
 	timezone: string;
 	refreshInterval: string;
+	startTime: string; // Device Wake Time
+	endTime: string; // Device Sleep Time
 }
 
 interface PluginCard {
@@ -36,27 +38,39 @@ interface PluginCard {
 
 const PLUGINS: PluginCard[] = [
 	{
-		id: 'weather',
-		title: 'Weather',
-		description: 'Configure location & units',
+		id: "weather",
+		title: "Weather",
+		description: "Configure location & units",
 		icon: Cloud,
-		color: 'text-bright-blue',
+		color: "text-bright-blue",
 	},
 	{
-		id: 'calendar',
-		title: 'Calendar',
-		description: 'iCal URL & display settings',
+		id: "calendar",
+		title: "Calendar",
+		description: "iCal URL & display settings",
 		icon: CalendarDays,
-		color: 'text-bright-blue',
+		color: "text-bright-blue",
 	},
 	{
-		id: 'system',
-		title: 'System',
-		description: 'Timezone & Refresh rates',
+		id: "system",
+		title: "System",
+		description: "Sleep schedule & Timezone",
 		icon: Settings2,
-		color: 'text-bright-blue',
+		color: "text-bright-blue",
 	},
 ];
+
+// Generate time options in 15-minute intervals
+const TIME_OPTIONS = (() => {
+	const times: string[] = [];
+	for (let hour = 0; hour < 24; hour++) {
+		for (let minute = 0; minute < 60; minute += 15) {
+			const timeStr = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+			times.push(timeStr);
+		}
+	}
+	return times;
+})();
 
 // --- COMPONENT ---
 
@@ -77,6 +91,8 @@ export default function ScreensConfig() {
 	const [systemConfig, setSystemConfig] = useState<SystemConfig>({
 		timezone: "Europe/Lisbon",
 		refreshInterval: "30",
+		startTime: "07:00",
+		endTime: "23:00",
 	});
 
 	// Load settings on mount
@@ -95,6 +111,8 @@ export default function ScreensConfig() {
 				setSystemConfig({
 					timezone: settings.system.timezone,
 					refreshInterval: settings.system.refreshInterval.toString(),
+					startTime: settings.system.startTime || "07:00",
+					endTime: settings.system.endTime || "23:00",
 				});
 			} catch (error) {
 				console.error("Failed to load settings:", error);
@@ -107,8 +125,6 @@ export default function ScreensConfig() {
 
 	const handleSave = async () => {
 		try {
-			// Fetch current settings to preserve startTime/endTime (managed on playlist page)
-			const currentSettings = await fetchSettings();
 			await updateSettings({
 				weather: {
 					location: weatherConfig.locationName,
@@ -121,8 +137,8 @@ export default function ScreensConfig() {
 				system: {
 					timezone: systemConfig.timezone,
 					refreshInterval: parseInt(systemConfig.refreshInterval),
-					startTime: currentSettings.system.startTime,
-					endTime: currentSettings.system.endTime,
+					startTime: systemConfig.startTime,
+					endTime: systemConfig.endTime,
 				},
 			});
 			console.log("Settings saved successfully");
@@ -156,14 +172,10 @@ export default function ScreensConfig() {
 							</div>
 
 							{/* Title */}
-							<h3 className="text-3xl text-charcoal mb-2 leading-none">
-								{plugin.title}
-							</h3>
+							<h3 className="text-3xl text-charcoal mb-2 leading-none">{plugin.title}</h3>
 
 							{/* Description */}
-							<p className="font-mono text-xs text-warm-gray uppercase tracking-wider">
-								{plugin.description}
-							</p>
+							<p className="font-mono text-xs text-warm-gray uppercase tracking-wider">{plugin.description}</p>
 						</button>
 					);
 				})}
@@ -194,24 +206,18 @@ export default function ScreensConfig() {
 			</div>
 
 			{/* WEATHER PLUGIN FORM */}
-			{selectedPlugin === 'weather' && (
+			{selectedPlugin === "weather" && (
 				<div className="bg-pure-white border border-[#E7E5E4] p-8">
-					{/* Card Header */}
 					<div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#E7E5E4]">
 						<div className="p-2 bg-off-white border border-[#E7E5E4] rounded">
 							<Cloud className="w-5 h-5 text-bright-blue" />
 						</div>
 						<div>
 							<h2 className="text-3xl text-charcoal leading-none">Weather Plugin</h2>
-							<p className="font-mono text-xs text-warm-gray uppercase tracking-wider mt-1">
-								Location Configuration
-							</p>
+							<p className="font-mono text-xs text-warm-gray uppercase tracking-wider mt-1">Location Configuration</p>
 						</div>
 					</div>
-
-					{/* Form Fields */}
 					<div className="space-y-6">
-						{/* Location Name */}
 						<div className="group/field">
 							<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
 								<MapPin className="w-3 h-3" />
@@ -225,10 +231,7 @@ export default function ScreensConfig() {
 								placeholder="e.g., Caldas da Rainha"
 							/>
 						</div>
-
-						{/* Coordinates Grid */}
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-							{/* Latitude */}
 							<div className="group/field">
 								<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
 									<Globe className="w-3 h-3" />
@@ -239,11 +242,8 @@ export default function ScreensConfig() {
 									value={weatherConfig.latitude}
 									onChange={(e) => setWeatherConfig({ ...weatherConfig, latitude: e.target.value })}
 									className="w-full bg-transparent border-b-2 border-[#E7E5E4] py-2 px-1 focus:outline-none focus:border-bright-blue font-mono text-sm text-charcoal transition-colors"
-									placeholder="e.g., 39.4062"
 								/>
 							</div>
-
-							{/* Longitude */}
 							<div className="group/field">
 								<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
 									<Globe className="w-3 h-3" />
@@ -254,7 +254,6 @@ export default function ScreensConfig() {
 									value={weatherConfig.longitude}
 									onChange={(e) => setWeatherConfig({ ...weatherConfig, longitude: e.target.value })}
 									className="w-full bg-transparent border-b-2 border-[#E7E5E4] py-2 px-1 focus:outline-none focus:border-bright-blue font-mono text-sm text-charcoal transition-colors"
-									placeholder="e.g., -9.1364"
 								/>
 							</div>
 						</div>
@@ -263,24 +262,18 @@ export default function ScreensConfig() {
 			)}
 
 			{/* CALENDAR PLUGIN FORM */}
-			{selectedPlugin === 'calendar' && (
+			{selectedPlugin === "calendar" && (
 				<div className="bg-pure-white border border-[#E7E5E4] p-8">
-					{/* Card Header */}
 					<div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#E7E5E4]">
 						<div className="p-2 bg-off-white border border-[#E7E5E4] rounded">
 							<CalendarDays className="w-5 h-5 text-bright-blue" />
 						</div>
 						<div>
 							<h2 className="text-3xl text-charcoal leading-none">Calendar Plugin</h2>
-							<p className="font-mono text-xs text-warm-gray uppercase tracking-wider mt-1">
-								iCal Integration
-							</p>
+							<p className="font-mono text-xs text-warm-gray uppercase tracking-wider mt-1">iCal Integration</p>
 						</div>
 					</div>
-
-					{/* Form Fields */}
 					<div className="space-y-6">
-						{/* iCal URL */}
 						<div className="group/field">
 							<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
 								<Globe className="w-3 h-3" />
@@ -291,72 +284,111 @@ export default function ScreensConfig() {
 								value={calendarConfig.icalUrl}
 								onChange={(e) => setCalendarConfig({ ...calendarConfig, icalUrl: e.target.value })}
 								className="w-full bg-transparent border-b-2 border-[#E7E5E4] py-2 px-1 focus:outline-none focus:border-bright-blue font-mono text-sm text-charcoal transition-colors"
-								placeholder="https://calendar.google.com/calendar/ical/..."
 							/>
-							<p className="font-mono text-xs text-warm-gray mt-2 italic">
-								Supports Google Calendar, Apple Calendar, or any standard iCal feed
-							</p>
 						</div>
 					</div>
 				</div>
 			)}
 
 			{/* SYSTEM PLUGIN FORM */}
-			{selectedPlugin === 'system' && (
+			{selectedPlugin === "system" && (
 				<div className="bg-pure-white border border-[#E7E5E4] p-8">
-					{/* Card Header */}
 					<div className="flex items-center gap-3 mb-6 pb-4 border-b border-[#E7E5E4]">
 						<div className="p-2 bg-off-white border border-[#E7E5E4] rounded">
 							<Settings2 className="w-5 h-5 text-bright-blue" />
 						</div>
 						<div>
 							<h2 className="text-3xl text-charcoal leading-none">System Settings</h2>
-							<p className="font-mono text-xs text-warm-gray uppercase tracking-wider mt-1">
-								Global Configuration
-							</p>
+							<p className="font-mono text-xs text-warm-gray uppercase tracking-wider mt-1">Power & Global Config</p>
 						</div>
 					</div>
 
-					{/* Form Fields */}
-					<div className="space-y-6">
-						{/* Timezone */}
-						<div className="group/field">
-							<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
-								<Globe className="w-3 h-3" />
-								Timezone
-							</label>
-							<select
-								value={systemConfig.timezone}
-								onChange={(e) => setSystemConfig({ ...systemConfig, timezone: e.target.value })}
-								className="w-full bg-transparent border-b-2 border-[#E7E5E4] py-2 px-1 focus:outline-none focus:border-bright-blue font-mono text-sm text-charcoal transition-colors cursor-pointer"
-							>
-								<option value="Europe/Lisbon">Europe/Lisbon</option>
-								<option value="Europe/London">Europe/London</option>
-								<option value="America/New_York">America/New York</option>
-								<option value="America/Los_Angeles">America/Los Angeles</option>
-								<option value="Asia/Tokyo">Asia/Tokyo</option>
-								<option value="Australia/Sydney">Australia/Sydney</option>
-							</select>
+					<div className="space-y-8">
+						{/* POWER SCHEDULE SECTION */}
+						<div>
+							<h3 className="text-sm font-bold text-charcoal mb-4 flex items-center gap-2">
+								<Moon className="w-4 h-4 text-warm-gray" />
+								DEVICE SLEEP SCHEDULE
+							</h3>
+							<div className="grid grid-cols-2 gap-6 p-4 bg-off-white border border-[#E7E5E4] rounded-sm">
+								<div className="group/field">
+									<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
+										<Sun className="w-3 h-3" />
+										Wake Up Time
+									</label>
+									<select
+										value={systemConfig.startTime}
+										onChange={(e) => setSystemConfig({ ...systemConfig, startTime: e.target.value })}
+										className="w-full bg-white border-b-2 border-[#E7E5E4] py-2 px-3 focus:outline-none focus:border-bright-blue font-mono text-sm text-charcoal cursor-pointer"
+									>
+										{TIME_OPTIONS.map((time) => (
+											<option key={time} value={time}>
+												{time}
+											</option>
+										))}
+									</select>
+								</div>
+								<div className="group/field">
+									<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
+										<Moon className="w-3 h-3" />
+										Sleep Time
+									</label>
+									<select
+										value={systemConfig.endTime}
+										onChange={(e) => setSystemConfig({ ...systemConfig, endTime: e.target.value })}
+										className="w-full bg-white border-b-2 border-[#E7E5E4] py-2 px-3 focus:outline-none focus:border-bright-blue font-mono text-sm text-charcoal cursor-pointer"
+									>
+										{TIME_OPTIONS.map((time) => (
+											<option key={time} value={time}>
+												{time}
+											</option>
+										))}
+									</select>
+								</div>
+							</div>
+							<p className="font-mono text-xs text-warm-gray mt-2 italic">
+								Outside these hours, the device will sleep continuously to save battery.
+							</p>
 						</div>
 
-						{/* Refresh Interval */}
-						<div className="group/field">
-							<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
-								<Clock className="w-3 h-3" />
-								Refresh Interval (minutes)
-							</label>
-							<input
-								type="number"
-								value={systemConfig.refreshInterval}
-								onChange={(e) => setSystemConfig({ ...systemConfig, refreshInterval: e.target.value })}
-								className="w-full bg-transparent border-b-2 border-[#E7E5E4] py-2 px-1 focus:outline-none focus:border-bright-blue font-mono text-sm text-charcoal transition-colors"
-								placeholder="30"
-								min="1"
-								max="1440"
-							/>
-							<p className="font-mono text-xs text-warm-gray mt-2 italic">
-								How often the e-ink display refreshes (1-1440 minutes)
-							</p>
+						{/* GENERAL SETTINGS */}
+						<div>
+							<h3 className="text-sm font-bold text-charcoal mb-4 flex items-center gap-2">
+								<Globe className="w-4 h-4 text-warm-gray" />
+								GENERAL
+							</h3>
+							<div className="space-y-6">
+								<div className="group/field">
+									<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
+										Timezone
+									</label>
+									<select
+										value={systemConfig.timezone}
+										onChange={(e) => setSystemConfig({ ...systemConfig, timezone: e.target.value })}
+										className="w-full bg-transparent border-b-2 border-[#E7E5E4] py-2 px-1 focus:outline-none focus:border-bright-blue font-mono text-sm text-charcoal transition-colors cursor-pointer"
+									>
+										<option value="Europe/Lisbon">Europe/Lisbon</option>
+										<option value="Europe/London">Europe/London</option>
+										<option value="America/New_York">America/New York</option>
+										<option value="America/Los_Angeles">America/Los Angeles</option>
+										<option value="Asia/Tokyo">Asia/Tokyo</option>
+										<option value="Australia/Sydney">Australia/Sydney</option>
+									</select>
+								</div>
+
+								<div className="group/field">
+									<label className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-warm-gray mb-2 group-hover/field:text-bright-blue transition-colors">
+										Default Refresh Interval (min)
+									</label>
+									<input
+										type="number"
+										value={systemConfig.refreshInterval}
+										onChange={(e) => setSystemConfig({ ...systemConfig, refreshInterval: e.target.value })}
+										className="w-full bg-transparent border-b-2 border-[#E7E5E4] py-2 px-1 focus:outline-none focus:border-bright-blue font-mono text-sm text-charcoal transition-colors"
+										min="1"
+									/>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
