@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentItem } from "@/lib/director";
+import { tick } from "@/lib/director";
 import { getSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -25,11 +25,10 @@ function isNightMode(startTime: string, endTime: string): boolean {
 
 /**
  * 2. SYNCED SLEEP CALCULATION
- * Calculates seconds remaining until the next "Slot" to prevent drift.
+ * Calculates seconds remaining until the next switch based on Director's state.
  */
-function calculateSyncedSleep(itemDurationMinutes: number, batteryLevel: number | null, isNight: boolean): number {
+function calculateSyncedSleep(directorNextSwitchTime: number, batteryLevel: number | null, isNight: boolean): number {
 	// A. Critical Battery (< 20%) -> Sleep 2 hours (7200s)
-	// We assume battery comes in as 0-100% from the ESP32
 	if (batteryLevel !== null && batteryLevel > 0 && batteryLevel < 20) {
 		console.log(`[Sleep] Critical Battery (${batteryLevel}%). Sleeping 2h.`);
 		return 7200;
@@ -41,26 +40,18 @@ function calculateSyncedSleep(itemDurationMinutes: number, batteryLevel: number 
 		return 3600;
 	}
 
-	// C. Day Mode -> Sync to Wall Clock
-	const durationMinutes = itemDurationMinutes || 5;
-	const durationSeconds = durationMinutes * 60;
+	// C. Day Mode -> Use Director's next switch time
+	const now = Date.now();
+	const sleepMs = Math.max(0, directorNextSwitchTime - now);
+	let sleepSeconds = Math.floor(sleepMs / 1000);
 
-	const now = new Date();
-	// Get total seconds passed in the current hour
-	const secondsInHour = now.getMinutes() * 60 + now.getSeconds();
+	// Add buffer time for device wake/render (20 seconds)
+	// This ensures the device wakes up slightly before the switch time
+	sleepSeconds = Math.max(30, sleepSeconds - 20);
 
-	// Calculate where we are in the current block (e.g., 125s into a 300s block)
-	const secondsIntoBlock = secondsInHour % durationSeconds;
-
-	// Calculate remaining time
-	let sleepSeconds = durationSeconds - secondsIntoBlock;
-
-	// SAFETY: If we are less than 20s from the switch, skip to the NEXT block.
-	// This prevents the screen from waking up, loading for 15s, and then immediately needing to switch again.
-	if (sleepSeconds < 20) {
-		console.log(`[Sleep] Too close to switch (${sleepSeconds}s). Skipping to next slot.`);
-		sleepSeconds += durationSeconds;
-	}
+	console.log(
+		`[Sleep] Calculated sleep: ${sleepSeconds}s (Director switches in ${Math.floor(sleepMs / 1000)}s, waking 20s early)`
+	);
 
 	return sleepSeconds;
 }
@@ -72,17 +63,19 @@ export async function GET(req: NextRequest) {
 
 	try {
 		const settings = await getSettings();
-		const currentItem = await getCurrentItem();
+
+		// Tick the Director to get current state and next switch time
+		const status = await tick();
 
 		const isNight = isNightMode(settings.system.startTime, settings.system.endTime);
-		const itemDuration = currentItem?.duration || settings.system.refreshInterval;
 
-		// Use the new Synced calculation
-		const sleepSeconds = calculateSyncedSleep(itemDuration, batteryLevel, isNight);
+		// Use Director's next switch time to calculate sleep
+		const sleepSeconds = calculateSyncedSleep(status.nextSwitchTime, batteryLevel, isNight);
 
 		const data = {
 			sleepSeconds,
-			currentItem: currentItem?.title || "None",
+			currentItem: status.currentItem?.title || "None",
+			nextSwitchTime: new Date(status.nextSwitchTime).toISOString(),
 			isNight,
 			battery: batteryLevel,
 		};
@@ -93,7 +86,6 @@ export async function GET(req: NextRequest) {
 			status: 200,
 			headers: {
 				"Content-Type": "application/json",
-				// Crucial for ESP32 stability
 				"Content-Length": Buffer.byteLength(jsonString).toString(),
 			},
 		});

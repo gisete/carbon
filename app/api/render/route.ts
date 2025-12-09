@@ -90,11 +90,9 @@ async function generateImage(batteryLevel: number | null, screenParam: string | 
 
 		lastGeneratedTime = Date.now();
 
-		// 2. Advance the cycle AFTER capture (only for real playlist items, not manual screens)
-		if (!screenParam) {
-			await advanceCycle();
-			console.log("[Render] Cycle advanced to next item.");
-		}
+		// NOTE: We do NOT advance the cycle here anymore.
+		// The Director handles advancement based on wall clock time via tick().
+		// This prevents race conditions where the device render time causes skipped screens.
 
 		console.log("[Render] Generation complete.");
 	} catch (error) {
