@@ -9,26 +9,8 @@ export const dynamic = "force-dynamic";
 
 // --- GLOBAL CACHE ---
 let imageCache: Buffer | null = null;
+let lastGeneratedTime = 0;
 let isGenerating = false;
-
-// ... (Helper functions: isNightMode, calculateSleepDuration, buildScreenUrl remain the same) ...
-function isNightMode(startTime: string, endTime: string): boolean {
-	const now = new Date();
-	const currentMinutes = now.getHours() * 60 + now.getMinutes();
-	const [startHour, startMin] = startTime.split(":").map(Number);
-	const startMinutes = startHour * 60 + startMin;
-	const [endHour, endMin] = endTime.split(":").map(Number);
-	const endMinutes = endHour * 60 + endMin;
-	if (endMinutes < startMinutes) return !(currentMinutes >= startMinutes || currentMinutes <= endMinutes);
-	return !(currentMinutes >= startMinutes && currentMinutes <= endMinutes);
-}
-
-function calculateSleepDuration(itemDurationMinutes: number, batteryLevel: number | null, isNight: boolean): number {
-	if (batteryLevel !== null && batteryLevel < 20) return 7200;
-	if (isNight) return 3600;
-	const duration = itemDurationMinutes || 5;
-	return duration * 60;
-}
 
 function buildScreenUrl(item: PlaylistItem | null): string {
 	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
@@ -47,10 +29,10 @@ function buildScreenUrl(item: PlaylistItem | null): string {
 }
 
 /**
- * BACKGROUND GENERATOR
+ * GENERATOR
  */
 async function generateImage(batteryLevel: number | null, screenParam: string | null, humidityParam: string | null) {
-	if (isGenerating) return; // Lock to prevent race conditions
+	if (isGenerating) return;
 	isGenerating = true;
 	console.log("[Render] Starting generation...");
 
@@ -61,6 +43,7 @@ async function generateImage(batteryLevel: number | null, screenParam: string | 
 			const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 			targetUrl = `${baseUrl}/screens/${screenParam}?humidity=${humidityParam || ""}`;
 		} else {
+			// 1. Get the ITEM that SHOULD be shown NOW
 			const currentItem = await getCurrentItem();
 
 			if (!currentItem) {
@@ -69,9 +52,6 @@ async function generateImage(batteryLevel: number | null, screenParam: string | 
 			} else {
 				console.log(`[Render] Generating item: ${currentItem.title}`);
 				targetUrl = buildScreenUrl(currentItem);
-
-				// Advance for the NEXT run
-				await advanceCycle();
 			}
 		}
 
@@ -100,7 +80,15 @@ async function generateImage(batteryLevel: number | null, screenParam: string | 
 			.png({ palette: true, colors: 2, dither: 1.0 })
 			.toBuffer();
 
-		console.log("[Render] Generation complete. Cache updated.");
+		lastGeneratedTime = Date.now();
+
+		// 2. Advance the cycle AFTER capture
+		if (!screenParam) {
+			await advanceCycle();
+			console.log("[Render] Cycle advanced.");
+		}
+
+		console.log("[Render] Generation complete.");
 	} catch (error) {
 		console.error("[Render] Generation failed:", error);
 	} finally {
@@ -114,41 +102,29 @@ export async function GET(req: NextRequest) {
 	const screenParam = searchParams.get("screen");
 	const humidityParam = searchParams.get("humidity");
 
-	// --- LOGIC FIX: Handle First Run vs Steady State ---
+	// --- LOGIC CHANGE: Generate on Demand ---
+	// If the cache is older than 60 seconds (or doesn't exist), generate NEW content.
+	const isStale = !imageCache || Date.now() - lastGeneratedTime > 60 * 1000;
 
-	if (!imageCache) {
-		console.log("[Render] Cache empty (First Run). Generating immediately...");
-		// 1. BLOCKING: Generate the FIRST image so we have something to show right now.
+	if (isStale) {
+		console.log("[Render] Cache stale/empty. Generating FRESH image...");
+		// Await the generation so we serve FRESH content
 		await generateImage(batteryLevel, screenParam, humidityParam);
-
-		// 2. NON-BLOCKING: Immediately trigger the NEXT generation.
-		// This ensures that when the device wakes up NEXT time, the cache is already waiting with image #2.
-		console.log("[Render] Triggering pre-generation for NEXT cycle...");
-		generateImage(batteryLevel, screenParam, humidityParam);
 	} else {
-		// Steady State: Serve current cache, then refill for next time.
-		// We trigger this *after* checking cache so we can return quickly,
-		// but since we want to be sure it runs, we call it here (Fire & Forget).
-		console.log("[Render] Serving cache. Refilling for next cycle...");
-		generateImage(batteryLevel, screenParam, humidityParam);
+		console.log("[Render] Serving valid cache.");
 	}
 
-	// --- Headers & Response ---
-	const settings = await getSettings();
-	const isNight = isNightMode(settings.system.startTime, settings.system.endTime);
-	const sleepSeconds = calculateSleepDuration(settings.system.refreshInterval, batteryLevel, isNight);
-
 	if (!imageCache) {
-		// Should not happen due to the await above, but safety first
 		return NextResponse.json({ error: "Generation failed" }, { status: 500 });
 	}
 
+	// We don't strictly need the sleep header here anymore since the separate API handles it,
+	// but we return the image buffer.
 	return new NextResponse(imageCache as any, {
 		headers: {
 			"Content-Type": "image/png",
 			"Content-Length": imageCache.length.toString(),
 			"Cache-Control": "no-store, max-age=0",
-			"X-Sleep-Seconds": sleepSeconds.toString(),
 		},
 	});
 }
