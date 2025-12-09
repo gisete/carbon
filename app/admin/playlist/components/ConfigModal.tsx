@@ -73,6 +73,9 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 		}
 	};
 
+	// Check if duration is below recommended minimum
+	const isBelowMinimum = duration < 2;
+
 	return (
 		<Modal isOpen={isOpen} onClose={handleCancel} title={item.title} subtitle={getSubtitle()}>
 			<div className="space-y-8">
@@ -88,9 +91,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 						placeholder={`Enter a custom name (e.g., "Family Calendar")`}
 						className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal placeholder-warm-gray focus:outline-none focus:border-bright-blue focus:bg-white transition-colors"
 					/>
-					<p className="mt-2 text-xs text-warm-gray">
-						Custom name for this plugin (optional)
-					</p>
+					<p className="mt-2 text-xs text-warm-gray">Custom name for this plugin (optional)</p>
 				</div>
 
 				{/* DURATION FIELD (Common to all plugins) */}
@@ -100,14 +101,24 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 					</label>
 					<input
 						type="number"
-						min="1"
+						min="2"
 						value={duration}
-						onChange={(e) => setDuration(parseInt(e.target.value) || 5)}
-						className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal focus:outline-none focus:border-bright-blue focus:bg-white transition-colors"
+						onChange={(e) => setDuration(parseInt(e.target.value) || 2)}
+						className={`w-full px-4 py-3 border ${
+							isBelowMinimum ? "border-bold-red" : "border-light-gray"
+						} bg-off-white text-charcoal focus:outline-none focus:border-bright-blue focus:bg-white transition-colors`}
 					/>
-					<p className="mt-2 text-xs text-warm-gray">
-						How many minutes this screen stays active before rotating
-					</p>
+					<p className="mt-2 text-xs text-warm-gray">How many minutes this screen stays active before rotating</p>
+					{isBelowMinimum && (
+						<div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded">
+							<p className="text-sm text-amber-800">
+								<strong>⚠️ Minimum 2 minutes recommended.</strong>
+								<br />
+								The device takes ~30 seconds to wake, fetch, and display content. With shorter durations, the screen
+								will be visible for less than half its intended time.
+							</p>
+						</div>
+					)}
 				</div>
 
 				{/* CALENDAR CONFIG */}
@@ -142,9 +153,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 								<option value="weekly">Weekly</option>
 								<option value="monthly">Monthly</option>
 							</select>
-							<p className="mt-2 text-xs text-warm-gray">
-								Choose how calendar events are displayed
-							</p>
+							<p className="mt-2 text-xs text-warm-gray">Choose how calendar events are displayed</p>
 						</div>
 					</>
 				)}
@@ -159,9 +168,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 							<div className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal">
 								Caldas da Rainha
 							</div>
-							<p className="mt-2 text-xs text-warm-gray">
-								Default location (currently fixed)
-							</p>
+							<p className="mt-2 text-xs text-warm-gray">Default location (currently fixed)</p>
 						</div>
 
 						<div>
@@ -176,9 +183,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 								<option value="current">Current Conditions</option>
 								<option value="weekly">7-Day Forecast</option>
 							</select>
-							<p className="mt-2 text-xs text-warm-gray">
-								Choose how weather information is displayed
-							</p>
+							<p className="mt-2 text-xs text-warm-gray">Choose how weather information is displayed</p>
 						</div>
 					</>
 				)}
@@ -196,9 +201,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 							rows={4}
 							className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal placeholder-warm-gray focus:outline-none focus:border-bright-blue focus:bg-white transition-colors resize-none"
 						/>
-						<p className="mt-2 text-xs text-warm-gray">
-							Custom text to display on the screen
-						</p>
+						<p className="mt-2 text-xs text-warm-gray">Custom text to display on the screen</p>
 					</div>
 				)}
 
