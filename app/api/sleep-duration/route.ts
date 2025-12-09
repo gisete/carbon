@@ -46,10 +46,17 @@ function calculateSyncedSleep(directorNextSwitchTime: number, batteryLevel: numb
 	let sleepSeconds = Math.floor(sleepMs / 1000);
 
 	// Add 5 seconds AFTER the switch to ensure Director has advanced
-	sleepSeconds = Math.max(10, sleepSeconds + 5);
+	sleepSeconds = sleepSeconds + 5;
+
+	// CRITICAL: Subtract estimated device render time (WiFi + download + display)
+	// This accounts for the time between calculating sleep and actually sleeping
+	const DEVICE_RENDER_TIME = 20; // seconds (WiFi:2s + Download:12s + Display:6s)
+	sleepSeconds = Math.max(10, sleepSeconds - DEVICE_RENDER_TIME);
 
 	console.log(
-		`[Sleep] Calculated sleep: ${sleepSeconds}s (Director switches in ${Math.floor(sleepMs / 1000)}s, waking 5s after)`
+		`[Sleep] Calculated sleep: ${sleepSeconds}s (Director switches in ${Math.floor(
+			sleepMs / 1000
+		)}s, +5s buffer, -${DEVICE_RENDER_TIME}s render time)`
 	);
 
 	return sleepSeconds;
