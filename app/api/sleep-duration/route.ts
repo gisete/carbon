@@ -27,8 +27,8 @@ function isNightMode(startTime: string, endTime: string): boolean {
  * Calculate how long the ESP32 should sleep (in seconds)
  */
 function calculateSleepDuration(itemDurationMinutes: number, batteryLevel: number | null, isNight: boolean): number {
-	// 1. Critical Battery (< 20%) -> Sleep 2 hours (7200s)
-	if (batteryLevel !== null && batteryLevel < 20) {
+	// FIX: Ensure battery is > 0. If it's 0, it's likely an error or USB power.
+	if (batteryLevel !== null && batteryLevel > 0 && batteryLevel < 20) {
 		console.log(`[Sleep Logic] Critical Battery (${batteryLevel}%). Sleeping 2 hours.`);
 		return 7200;
 	}
