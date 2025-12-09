@@ -76,7 +76,7 @@ export default function MonthlyView({ events }: MonthlyViewProps) {
 			</div>
 
 			{/* ===== CALENDAR GRID ===== */}
-			<div className="flex-1 grid grid-rows-[repeat(var(--num-weeks),1fr)] border-t-2 border-l-2 border-black">
+			<div className="flex-1 grid grid-rows-[repeat(var(--num-weeks),1fr)] border-t-2 border-l-2 border-gray-500">
 				{Array.from({ length: numWeeks }).map((_, weekIndex) => {
 					const weekStart = weekIndex * 7;
 					const weekEnd = weekStart + 7;
@@ -93,7 +93,7 @@ export default function MonthlyView({ events }: MonthlyViewProps) {
 								return (
 									<div
 										key={dayIndex}
-										className="border-r-2 border-b-2 border-black p-2 flex flex-col overflow-hidden"
+										className="border-r-2 border-b-2 border-gray-500 p-2 flex flex-col overflow-hidden"
 									>
 										{/* Day Number */}
 										{isCurrentDay ? (
@@ -116,7 +116,7 @@ export default function MonthlyView({ events }: MonthlyViewProps) {
 												{dayEvents.slice(0, 3).map((event, eventIdx) => (
 													<div
 														key={eventIdx}
-														className="text-[9px] leading-tight text-black border border-black px-1 py-0.5 truncate"
+														className="text-[9px] leading-tight text-black border border-gray-500 px-1 py-0.5 truncate"
 														title={event.title}
 													>
 														{event.title}
