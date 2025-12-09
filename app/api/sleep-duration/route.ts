@@ -50,7 +50,7 @@ function calculateSyncedSleep(directorNextSwitchTime: number, batteryLevel: numb
 
 	// CRITICAL: Subtract estimated device render time (WiFi + download + display)
 	// This accounts for the time between calculating sleep and actually sleeping
-	const DEVICE_RENDER_TIME = 20; // seconds (WiFi:2s + Download:12s + Display:6s)
+	const DEVICE_RENDER_TIME = 26; // seconds (WiFi:2s + Download:12s + Display:12s)
 	sleepSeconds = Math.max(10, sleepSeconds - DEVICE_RENDER_TIME);
 
 	console.log(
