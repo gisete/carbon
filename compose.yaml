@@ -8,6 +8,9 @@ services:
     restart: always
     ports:
       - "3000:3000"
+    volumes:
+      # Mount data directory for persistent storage
+      - ./data:/app/data
     environment:
       - NODE_ENV=production
       - TZ=Europe/Lisbon
