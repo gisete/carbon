@@ -132,8 +132,12 @@ export async function GET(req: NextRequest) {
 
 		const ditheredBuffer = await sharp(screenshotBuffer)
 			.resize(800, 480, { fit: "contain", background: { r: 255, g: 255, b: 255 } })
-			.toColourspace("b-w")
-			.png({ palette: true, colors: 2, dither: 1.0 })
+			.grayscale() // Convert to grayscale first
+			.png({
+				palette: true,
+				colors: 2,
+				dither: 1.0, // Floyd-Steinberg dithering - simulates grays with B&W patterns
+			})
 			.toBuffer();
 
 		const fileSize = ditheredBuffer.length.toString();
