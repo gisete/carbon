@@ -45,13 +45,22 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Create data directory with proper permissions
-RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
+# Don't switch to nextjs user yet - we need root to fix permissions at runtime
+# Create data directory
+RUN mkdir -p /app/data
 
-USER nextjs
+# Create entrypoint script to fix permissions at runtime
+RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo 'chown -R nextjs:nodejs /app/data 2>/dev/null || true' >> /entrypoint.sh && \
+    echo 'exec su-exec nextjs:nodejs node server.js' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+# Install su-exec for safer user switching
+RUN apk add --no-cache su-exec
 
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+# Use entrypoint script to fix permissions before starting
+CMD ["/entrypoint.sh"]
