@@ -132,22 +132,11 @@ export async function GET(req: NextRequest) {
 	const screenParam = searchParams.get("screen");
 	const humidityParam = searchParams.get("humidity");
 
-	// Log all query parameters for debugging
-	console.log("[Render API] Query params:", {
-		battery: searchParams.get("battery"),
-		batteryLevel,
-		screen: screenParam,
-		humidity: humidityParam,
-	});
-
 	// Fire and forget: Update battery level if provided
 	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
-		console.log("[Render API] Updating battery level to:", batteryLevel);
 		updateBatteryLevel(batteryLevel).catch((err) => {
 			console.error("[Render API] Failed to update battery level:", err);
 		});
-	} else {
-		console.log("[Render API] No valid battery level received");
 	}
 
 	// CRITICAL: Always generate fresh image on demand for the device

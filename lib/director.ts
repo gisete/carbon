@@ -279,7 +279,9 @@ export async function updateBatteryLevel(level: number): Promise<void> {
 			batteryLevel: level,
 		};
 		await saveState(newState);
-		if (DEBUG) console.log("[Director] Updated battery level:", level);
+		console.log("[Director] Successfully saved battery level to state:", level);
+	} else {
+		console.log("[Director] Battery level unchanged:", level);
 	}
 }
 

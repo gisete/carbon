@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Moon } from "lucide-react";
+import { Moon, Battery } from "lucide-react";
 import {
 	fetchPlaylistCollection,
 	updatePlaylistByIdAction,
@@ -37,6 +37,7 @@ export default function PlaylistPage() {
 	const [activeItemId, setActiveItemId] = useState<string | null>(null);
 	const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 	const [isSleeping, setIsSleeping] = useState(false);
+	const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
 
 	const selectedPlaylist = collection?.playlists.find((p) => p.id === selectedPlaylistId) || null;
 
@@ -64,6 +65,7 @@ export default function PlaylistPage() {
 				setActiveItemId(status.currentItem?.id || null);
 				setActivePlaylistId(status.activePlaylistId);
 				setIsSleeping(!!status.isSleeping);
+				setBatteryLevel(status.batteryLevel !== undefined ? status.batteryLevel : null);
 			} catch (error) {
 				console.error("Failed to poll director state:", error);
 			}
@@ -331,7 +333,24 @@ export default function PlaylistPage() {
 	return (
 		<>
 			<div className="flex justify-between items-center mb-12">
-				<div></div>
+				{/* Battery Indicator */}
+				{batteryLevel !== null && (
+					<div className="flex items-center gap-2">
+						<Battery
+							className={`w-5 h-5 ${
+								batteryLevel <= 20 ? "text-red-500" : "text-green-600"
+							}`}
+						/>
+						<span
+							className={`text-sm font-mono ${
+								batteryLevel <= 20 ? "text-red-500" : "text-green-600"
+							}`}
+						>
+							{Math.round(batteryLevel)}%
+						</span>
+					</div>
+				)}
+				{batteryLevel === null && <div></div>}
 				<button
 					onClick={() => setIsAddPlaylistModalOpen(true)}
 					className="group flex items-center gap-2 text-sm font-mono tracking-widest hover:text-bright-blue transition-colors cursor-pointer"

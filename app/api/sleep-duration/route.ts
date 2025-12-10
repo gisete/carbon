@@ -88,20 +88,13 @@ export async function GET(req: NextRequest) {
 	const batteryParam = searchParams.get("battery");
 	const batteryLevel = batteryParam ? parseFloat(batteryParam) : null;
 
-	// Log all query parameters for debugging
-	console.log("[Sleep API] Query params:", {
-		battery: batteryParam,
-		batteryLevel,
-	});
-
-	// Fire and forget: Update battery level if provided
+	// Update battery level if provided (await to catch errors)
 	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
-		console.log("[Sleep API] Updating battery level to:", batteryLevel);
-		updateBatteryLevel(batteryLevel).catch((err) => {
+		try {
+			await updateBatteryLevel(batteryLevel);
+		} catch (err) {
 			console.error("[Sleep API] Failed to update battery level:", err);
-		});
-	} else {
-		console.log("[Sleep API] No valid battery level received");
+		}
 	}
 
 	try {
