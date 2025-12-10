@@ -32,7 +32,7 @@ export async function fetchPlaylist(): Promise<PlaylistItem[]> {
  */
 export async function updatePlaylist(items: PlaylistItem[]): Promise<void> {
   await savePlaylist(items);
-  revalidatePath('/admin/playlist');
+  revalidatePath('/playlist');
 }
 
 /**
@@ -47,7 +47,7 @@ export async function fetchSettings(): Promise<Settings> {
  */
 export async function updateSettings(settings: Settings): Promise<void> {
   await saveSettings(settings);
-  revalidatePath('/admin/screens');
+  revalidatePath('/screens');
   revalidatePath('/screens/calendar');
 }
 
@@ -121,7 +121,7 @@ export async function fetchPlaylistCollection(): Promise<PlaylistCollection> {
  */
 export async function savePlaylistCollectionAction(collection: PlaylistCollection): Promise<void> {
   await savePlaylistCollection(collection);
-  revalidatePath('/admin/playlist');
+  revalidatePath('/playlist');
 }
 
 /**
@@ -136,7 +136,7 @@ export async function fetchPlaylistById(id: string): Promise<Playlist | null> {
  */
 export async function createNewPlaylist(name: string, schedule: Schedule, isDefault: boolean = false): Promise<Playlist> {
   const playlist = await createPlaylist(name, schedule, isDefault);
-  revalidatePath('/admin/playlist');
+  revalidatePath('/playlist');
   return playlist;
 }
 
@@ -145,7 +145,7 @@ export async function createNewPlaylist(name: string, schedule: Schedule, isDefa
  */
 export async function updatePlaylistByIdAction(id: string, updates: Partial<Omit<Playlist, 'id'>>): Promise<void> {
   await updatePlaylistById(id, updates);
-  revalidatePath('/admin/playlist');
+  revalidatePath('/playlist');
 }
 
 /**
@@ -153,7 +153,7 @@ export async function updatePlaylistByIdAction(id: string, updates: Partial<Omit
  */
 export async function deletePlaylistById(id: string): Promise<void> {
   await deletePlaylist(id);
-  revalidatePath('/admin/playlist');
+  revalidatePath('/playlist');
 }
 
 /**
@@ -161,5 +161,5 @@ export async function deletePlaylistById(id: string): Promise<void> {
  */
 export async function setActivePlaylistId(playlistId: string | null): Promise<void> {
   await setActivePlaylist(playlistId);
-  revalidatePath('/admin/playlist');
+  revalidatePath('/playlist');
 }

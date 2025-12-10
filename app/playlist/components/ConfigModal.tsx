@@ -14,14 +14,14 @@ interface ConfigModalProps {
 export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigModalProps) {
 	// Local state for form fields
 	const [config, setConfig] = useState<Record<string, any>>({});
-	const [duration, setDuration] = useState<number>(5);
+	const [duration, setDuration] = useState<number>(15);
 	const [title, setTitle] = useState<string>("");
 
 	// Initialize config when item changes
 	useEffect(() => {
 		if (item) {
 			setConfig(item.config || {});
-			setDuration(item.duration ?? 5);
+			setDuration(item.duration ?? 15);
 			setTitle(item.title || "");
 		}
 	}, [item]);
@@ -32,9 +32,11 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 		// Update subtitle based on config
 		let subtitle = item.subtitle;
 		if (item.type === "calendar") {
-			subtitle = config.icalUrl ? "iCal URL configured" : "No iCal URL configured";
+			const viewMode = config.viewMode || "daily";
+			subtitle = viewMode.charAt(0).toUpperCase() + viewMode.slice(1);
 		} else if (item.type === "weather") {
-			subtitle = "Caldas da Rainha";
+			const viewMode = config.viewMode || "current";
+			subtitle = viewMode === "current" ? "Current Conditions" : "7-Day Forecast";
 		} else if (item.type === "custom-text") {
 			subtitle = config.text ? "Message configured" : "No message set";
 		}
@@ -54,7 +56,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 	const handleCancel = () => {
 		// Reset to original config
 		setConfig(item.config || {});
-		setDuration(item.duration ?? 5);
+		setDuration(item.duration ?? 15);
 		setTitle(item.title || "");
 		onClose();
 	};
@@ -68,6 +70,8 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 				return "Configure Weather Display";
 			case "custom-text":
 				return "Configure Custom Message";
+			case "logo":
+				return "Configure Logo Display";
 			default:
 				return "Configure Plugin Settings";
 		}
@@ -202,6 +206,24 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 							className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal placeholder-warm-gray focus:outline-none focus:border-bright-blue focus:bg-white transition-colors resize-none"
 						/>
 						<p className="mt-2 text-xs text-warm-gray">Custom text to display on the screen</p>
+					</div>
+				)}
+
+				{/* LOGO CONFIG */}
+				{item.type === "logo" && (
+					<div>
+						<label className="block font-mono text-[10px] tracking-[1.5px] uppercase text-warm-gray mb-3">
+							Font Size (px)
+						</label>
+						<input
+							type="number"
+							min="40"
+							max="200"
+							value={config.fontSize || "120"}
+							onChange={(e) => setConfig({ ...config, fontSize: e.target.value })}
+							className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal focus:outline-none focus:border-bright-blue focus:bg-white transition-colors"
+						/>
+						<p className="mt-2 text-xs text-warm-gray">Adjust the size of the Carbon logo (40-200px)</p>
 					</div>
 				)}
 

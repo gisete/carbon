@@ -14,6 +14,8 @@ function getPluginIcon(type: string) {
 			return Calendar;
 		case "custom-text":
 			return Type;
+		case "logo":
+			return Play;
 		default:
 			return Play;
 	}
@@ -30,6 +32,9 @@ function buildScreenUrl(item: PlaylistItem): string {
 			return `${baseUrl}/calendar?view=${calendarView}`;
 		case "custom-text":
 			return `${baseUrl}/custom-text?text=${encodeURIComponent(item.config?.text || "")}`;
+		case "logo":
+			const fontSize = item.config?.fontSize || "120";
+			return `${baseUrl}/logo?fontSize=${fontSize}`;
 		default:
 			return baseUrl;
 	}
@@ -75,16 +80,6 @@ export default function SimulatorPage() {
 			setNextSwitchIn(remaining);
 		}, 1000);
 		return () => clearInterval(interval);
-	}, []);
-
-	useEffect(() => {
-		if (!directorStatus || directorStatus.isSleeping) {
-			setNextSwitchIn(0);
-			return;
-		}
-		const now = Date.now();
-		const remaining = Math.max(0, Math.floor((directorStatus.nextSwitchTime - now) / 1000));
-		setNextSwitchIn(remaining);
 	}, [directorStatus]);
 
 	const activeItem = directorStatus?.currentItem;
@@ -100,10 +95,10 @@ export default function SimulatorPage() {
 					<p className="text-gray-400">Test playlist rotation and scheduling logic</p>
 				</div>
 
-				<div className="grid grid-cols-1 lg:grid-cols-[800px_1fr] gap-8">
+				<div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-8">
 					{/* LEFT: Device Screen */}
 					<div>
-						<div className="bg-neutral-800 p-6 rounded-lg">
+						<div className="bg-neutral-800 p-6 rounded-lg w-fit">
 							<div className="flex items-center gap-3 mb-4">
 								<div className={`w-3 h-3 rounded-full ${isSleeping ? "bg-amber-500" : "bg-green-500"}`}></div>
 								<span className="text-sm font-mono text-gray-400">
@@ -111,7 +106,7 @@ export default function SimulatorPage() {
 								</span>
 							</div>
 
-							<div className="border-4 border-black bg-white relative" style={{ width: "800px", height: "480px" }}>
+							<div className="border-4 border-black bg-white relative overflow-hidden" style={{ width: "800px", height: "480px" }}>
 								{isSleeping ? (
 									<div className="w-full h-full flex flex-col items-center justify-center bg-neutral-100 text-neutral-400">
 										<Moon className="w-16 h-16 mb-4 text-neutral-300" />

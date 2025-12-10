@@ -83,9 +83,16 @@ async function generateImage(batteryLevel: number | null, screenParam: string | 
 
 		// Process Image
 		imageCache = await sharp(screenshotBuffer)
-			.resize(800, 480, { fit: "contain", background: { r: 255, g: 255, b: 255 } })
-			.grayscale()
-			.png({ palette: true, colors: 2, dither: 1.0 })
+			.resize(800, 480, {
+				fit: "contain",
+				background: { r: 255, g: 255, b: 255 },
+			})
+			.grayscale() // Ensure input is gray
+			.png({
+				palette: true,
+				colors: 2, // Force 1-bit (Black & White)
+				dither: 1.0, // 100% Dithering (Simulates Grayscale)
+			})
 			.toBuffer();
 
 		lastGeneratedTime = Date.now();

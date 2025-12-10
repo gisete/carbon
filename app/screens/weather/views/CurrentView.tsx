@@ -29,7 +29,7 @@ export default function CurrentView({ data }: CurrentViewProps) {
 	return (
 		<div className="w-[800px] h-[480px] bg-white text-black font-sans relative flex flex-col overflow-hidden select-none">
 			{/* --- Header --- */}
-			<header className="h-[60px] flex justify-between items-center px-6 border-b-2 border-black shrink-0">
+			<header className="h-[60px] flex justify-between items-center px-6 border-b-2 border-eink-light-gray shrink-0">
 				<div className="flex items-center gap-3">
 					<MapPin className="w-5 h-5 stroke-black stroke-2" />
 					<h1 className="text-xl font-medium uppercase tracking-wider">{data.location}</h1>
@@ -45,7 +45,7 @@ export default function CurrentView({ data }: CurrentViewProps) {
 				</div>
 
 				{/* Col 2: Big Temp & Sun Times (40%) */}
-				<div className="w-[40%] flex flex-col items-center justify-center border-x-[3px] border-dotted border-black relative">
+				<div className="w-[40%] flex flex-col items-center justify-center border-x-2 border-eink-light-gray relative">
 					<div className="text-[160px] leading-[0.8] font-bold tracking-tighter indent-[-10px]">
 						{Math.round(Number(data.current.temp))}°
 					</div>
@@ -70,7 +70,7 @@ export default function CurrentView({ data }: CurrentViewProps) {
 							<Thermometer className="w-6 h-6 stroke-[2.5]" />
 							<span className="text-3xl font-black tracking-tight">{Math.round(Number(data.current.feelsLike))}°</span>
 						</div>
-						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-gray-600">Feels Like</div>
+						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-mid-gray">Feels Like</div>
 					</div>
 
 					{/* Humidity (Dynamic!) */}
@@ -79,7 +79,7 @@ export default function CurrentView({ data }: CurrentViewProps) {
 							<Droplets className="w-6 h-6 fill-black stroke-black" />
 							<span className="text-3xl font-black tracking-tight">{Math.round(Number(data.current.humidity))}%</span>
 						</div>
-						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-gray-600">Humidity</div>
+						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-mid-gray">Humidity</div>
 					</div>
 
 					{/* Wind */}
@@ -90,13 +90,13 @@ export default function CurrentView({ data }: CurrentViewProps) {
 								{data.current.windDir} {data.current.windSpeed}
 							</span>
 						</div>
-						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-gray-600">Current Wind</div>
+						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-mid-gray">Current Wind</div>
 					</div>
 				</div>
 			</div>
 
 			{/* --- Hourly Forecast Section (Real Data) --- */}
-			<div className="h-[140px] border-t-[3px] border-dotted border-black p-4 flex flex-col justify-between shrink-0">
+			<div className="h-[140px] border-t-2 border-eink-light-gray p-4 flex flex-col justify-between shrink-0">
 				<h3 className="text-[11px] font-bold uppercase tracking-[0.2em] mb-2 ml-2">Hourly Forecast</h3>
 
 				<div className="flex justify-between items-end px-2 pb-1">

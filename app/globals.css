@@ -11,6 +11,12 @@
 	--color-pure-white: #FFFFFF;
 	--color-light-gray: #E7E5E4;
 
+	/* E-Ink Specific Colors (for screen components only) */
+	--color-black: #000000;
+	--color-dark-gray: #404040;
+	--color-mid-gray: #808080;
+	--color-eink-light-gray: #D3D3D3;
+
 	/* Spacing */
 	--spacing-xs: 0.125rem;
 	--spacing-sm: 0.25rem;

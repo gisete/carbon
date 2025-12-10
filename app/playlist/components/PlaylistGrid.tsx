@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sun, CalendarDays, Type, GripVertical, SlidersHorizontal, X, Cloud, Eye, EyeOff } from "lucide-react";
+import { Sun, CalendarDays, Type, GripVertical, SlidersHorizontal, X, Cloud, Eye, EyeOff, Square } from "lucide-react";
 import type { PlaylistItem } from "@/lib/playlist";
 
 // --- TYPES ---
-type ScreenType = "weather" | "calendar" | "custom-text";
+type ScreenType = "weather" | "calendar" | "custom-text" | "logo";
 
 interface PlaylistGridProps {
 	playlist: PlaylistItem[];
@@ -26,6 +26,8 @@ const renderScreenIcon = (type: ScreenType, colorClass: string) => {
 			return <CalendarDays className={`w-6 h-6 ${colorClass} stroke-1`} />;
 		case "custom-text":
 			return <Type className={`w-6 h-6 ${colorClass} stroke-1`} />;
+		case "logo":
+			return <Square className={`w-6 h-6 ${colorClass} stroke-1`} />;
 		default:
 			return <Sun className={`w-6 h-6 ${colorClass} stroke-1`} />;
 	}
@@ -49,6 +51,13 @@ const renderPreview = (type: ScreenType, groupHoverClass: string) => {
 						className={`w-px h-full bg-light-gray ${groupHoverClass.replace("text-bright-blue", "bg-bright-blue/20")}`}
 					></div>
 				))}
+			</div>
+		);
+	}
+	if (type === "logo") {
+		return (
+			<div className="flex items-center justify-center">
+				<span className="font-bold text-[8px] text-warm-gray tracking-wider">CARBON</span>
 			</div>
 		);
 	}
@@ -159,9 +168,9 @@ export default function PlaylistGrid({ playlist, isLoading, activeItemId, onRemo
 									</div>
 									<div className="col-span-2">
 										{isActive && (
-											<div className="flex items-center gap-2 px-3 py-1 w-fit bg-warm-gray/5 border border-green-500 rounded-full">
+											<div className="flex items-center gap-2 px-3 py-1 w-fit rounded-full">
 												<div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-												<span className="font-mono text-sm uppercase text-green-500">Active</span>
+												<span className="font-mono text-sm uppercase text-green-500">Playing</span>
 											</div>
 										)}
 									</div>

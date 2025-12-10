@@ -5,7 +5,7 @@ import path from 'path';
 
 export interface PlaylistItem {
   id: string;
-  type: 'weather' | 'calendar' | 'custom-text';
+  type: 'weather' | 'calendar' | 'custom-text' | 'logo';
   title: string;
   subtitle: string;
   config: Record<string, any>; // For plugin settings

@@ -35,6 +35,7 @@ export default function PlaylistPage() {
 	const [isNewItem, setIsNewItem] = useState(false);
 
 	const [activeItemId, setActiveItemId] = useState<string | null>(null);
+	const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 	const [isSleeping, setIsSleeping] = useState(false);
 
 	const selectedPlaylist = collection?.playlists.find((p) => p.id === selectedPlaylistId) || null;
@@ -61,6 +62,7 @@ export default function PlaylistPage() {
 			try {
 				const status = await tickDirector();
 				setActiveItemId(status.currentItem?.id || null);
+				setActivePlaylistId(status.activePlaylistId);
 				setIsSleeping(!!status.isSleeping);
 			} catch (error) {
 				console.error("Failed to poll director state:", error);
@@ -119,10 +121,10 @@ export default function PlaylistPage() {
 					id: generateId(),
 					type: "weather",
 					title: "Weather",
-					subtitle: "Caldas da Rainha",
-					config: {},
+					subtitle: "Current Conditions",
+					config: { viewMode: "current" },
 					lastUpdated: "Just now",
-					duration: 5,
+					duration: 15,
 				};
 				break;
 			case "calendar":
@@ -131,10 +133,10 @@ export default function PlaylistPage() {
 					id: generateId(),
 					type: "calendar",
 					title: "Calendar",
-					subtitle: defaultIcalUrl ? "iCal URL configured" : "No iCal URL configured",
-					config: { icalUrl: defaultIcalUrl },
+					subtitle: "Daily",
+					config: { icalUrl: defaultIcalUrl, viewMode: "daily" },
 					lastUpdated: "Just now",
-					duration: 5,
+					duration: 15,
 				};
 				break;
 			case "custom-text":
@@ -145,7 +147,18 @@ export default function PlaylistPage() {
 					subtitle: "No message set",
 					config: { text: "" },
 					lastUpdated: "Just now",
-					duration: 5,
+					duration: 15,
+				};
+				break;
+			case "logo":
+				newItem = {
+					id: generateId(),
+					type: "logo",
+					title: "Carbon Logo",
+					subtitle: "Branding",
+					config: { fontSize: "120" },
+					lastUpdated: "Just now",
+					duration: 15,
 				};
 				break;
 		}
@@ -353,6 +366,7 @@ export default function PlaylistPage() {
 						<div key={playlist.id} className="space-y-6">
 							<PlaylistHeader
 								playlist={playlist}
+								isActive={!isSleeping && activePlaylistId === playlist.id}
 								onScheduleChange={(startTime, endTime) => savePlaylistSchedule(startTime, endTime, playlist.id)}
 								onEdit={() => handleEditPlaylist(playlist.id)}
 								onDelete={() => handleDeletePlaylist(playlist.id)}
