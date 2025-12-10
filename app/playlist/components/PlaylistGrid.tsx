@@ -1,3 +1,5 @@
+// app/playlist/components/PlaylistGrid.tsx
+
 "use client";
 
 import React, { useState } from "react";
@@ -33,39 +35,72 @@ const renderScreenIcon = (type: ScreenType, colorClass: string) => {
 	}
 };
 
-const renderPreview = (type: ScreenType, groupHoverClass: string) => {
+/**
+ * Renders a mini-preview based on the item's configuration.
+ * Uses the config to show actual text, view modes, or logo styles.
+ */
+const renderPreview = (item: PlaylistItem, groupHoverClass: string) => {
+	const { type, config } = item;
+	// Helper to handle the hover color logic for text vs icons
+	const textClass = groupHoverClass.includes("text-bold-red")
+		? "text-bold-red"
+		: "text-charcoal group-hover:text-bright-blue";
+
 	if (type === "weather") {
+		const viewMode = config?.viewMode || "current";
 		return (
-			<div className="flex flex-col items-center gap-1">
-				<Cloud className={`w-3 h-3 text-warm-gray ${groupHoverClass}`} />
-				<div className={`w-6 h-px bg-warm-gray ${groupHoverClass.replace("text-", "bg-")}`}></div>
+			<div className="flex flex-col items-center justify-center w-full h-full gap-1 p-1">
+				<Cloud className={`w-4 h-4 ${groupHoverClass}`} />
+				<span className={`text-[6px] uppercase font-mono tracking-wider ${textClass} opacity-60`}>
+					{viewMode === "weekly" ? "7-Day" : "Now"}
+				</span>
 			</div>
 		);
 	}
+
 	if (type === "calendar") {
+		const viewMode = config?.viewMode || "daily";
 		return (
-			<div className="absolute inset-0 flex gap-0.5 justify-center py-2 px-1">
-				{[...Array(4)].map((_, i) => (
-					<div
-						key={i}
-						className={`w-px h-full bg-light-gray ${groupHoverClass.replace("text-bright-blue", "bg-bright-blue/20")}`}
-					></div>
-				))}
+			<div className="flex flex-col items-center justify-center w-full h-full gap-1 p-1">
+				<CalendarDays className={`w-3 h-3 ${groupHoverClass}`} />
+				<span className={`text-[6px] uppercase font-mono tracking-wider ${textClass} opacity-60`}>{viewMode}</span>
 			</div>
 		);
 	}
+
 	if (type === "logo") {
 		return (
-			<div className="flex items-center justify-center">
-				<span className="font-bold text-[8px] text-warm-gray tracking-wider">CARBON</span>
+			<div className="flex flex-col items-center justify-center w-full h-full">
+				<div className={`font-black text-[10px] tracking-widest leading-none ${textClass}`}>
+					C<span className="font-bold">ARBON</span>
+				</div>
 			</div>
 		);
 	}
-	return <span className="font-serif italic text-[8px] text-warm-gray">Hello World</span>;
+
+	if (type === "custom-text") {
+		return (
+			<div className="w-full h-full flex items-center justify-center p-2 overflow-hidden">
+				<p className={`text-[6px] font-bold leading-tight text-center break-words line-clamp-3 ${textClass}`}>
+					{config?.text || "Hello World"}
+				</p>
+			</div>
+		);
+	}
+
+	return <span className="font-serif italic text-[8px] text-warm-gray">Unknown</span>;
 };
 
 // --- COMPONENT ---
-export default function PlaylistGrid({ playlist, isLoading, activeItemId, onRemoveItem, onEditItem, onReorder, onToggleVisibility }: PlaylistGridProps) {
+export default function PlaylistGrid({
+	playlist,
+	isLoading,
+	activeItemId,
+	onRemoveItem,
+	onEditItem,
+	onReorder,
+	onToggleVisibility,
+}: PlaylistGridProps) {
 	const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 	const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -110,7 +145,9 @@ export default function PlaylistGrid({ playlist, isLoading, activeItemId, onRemo
 			{/* LIST CONTAINER */}
 			<div className="flex flex-col border-t border-l border-r border-light-gray">
 				{isLoading ? (
-					<div className="text-center py-12 font-mono text-sm text-warm-gray border-b border-light-gray">Loading playlist...</div>
+					<div className="text-center py-12 font-mono text-sm text-warm-gray border-b border-light-gray">
+						Loading playlist...
+					</div>
 				) : playlist.length === 0 ? (
 					<div className="text-center py-12 font-mono text-sm text-warm-gray border-b border-light-gray">
 						No screens yet. Click "ADD SCREEN" to get started.
@@ -128,9 +165,9 @@ export default function PlaylistGrid({ playlist, isLoading, activeItemId, onRemo
 								onDragOver={(e) => handleDragOver(e, index)}
 								onDrop={(e) => handleDrop(e, index)}
 								onDragEnd={handleDragEnd}
-								className={`group relative bg-pure-white border-b border-light-gray ${
-									isActive ? "shadow-sm" : ""
-								} ${isDragging ? "opacity-50" : ""} ${isDragOver && draggedIndex !== index ? "border-t-2 border-t-bright-blue" : ""} transition-opacity`}
+								className={`group relative bg-pure-white border-b border-light-gray ${isActive ? "shadow-sm" : ""} ${
+									isDragging ? "opacity-50" : ""
+								} ${isDragOver && draggedIndex !== index ? "border-t-2 border-t-bright-blue" : ""} transition-opacity`}
 							>
 								{isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-bold-red"></div>}
 								{!isActive && (
@@ -138,7 +175,11 @@ export default function PlaylistGrid({ playlist, isLoading, activeItemId, onRemo
 								)}
 								<div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center p-6 pl-6">
 									<div className="col-span-1">
-										<div className={`${isDragging ? "cursor-grabbing" : "cursor-grab"} hover:text-bright-blue text-warm-gray transition-colors flex items-center justify-center p-1`}>
+										<div
+											className={`${
+												isDragging ? "cursor-grabbing" : "cursor-grab"
+											} hover:text-bright-blue text-warm-gray transition-colors flex items-center justify-center p-1`}
+										>
 											<GripVertical className="w-6 h-6 stroke-1" />
 										</div>
 									</div>
@@ -157,7 +198,8 @@ export default function PlaylistGrid({ playlist, isLoading, activeItemId, onRemo
 									</div>
 									<div className="col-span-2">
 										<div className="w-20 h-12 border border-light-gray group-hover:border-bright-blue/30 flex items-center justify-center bg-off-white relative overflow-hidden">
-											{renderPreview(item.type, isActive ? "text-bold-red" : "group-hover:text-bright-blue")}
+											{/* UPDATED CALL: Pass the full 'item' object here */}
+											{renderPreview(item, isActive ? "text-bold-red" : "text-warm-gray group-hover:text-bright-blue")}
 										</div>
 									</div>
 									<div className="col-span-4">
