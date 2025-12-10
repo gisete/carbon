@@ -1,5 +1,6 @@
 import { CalendarEvent } from "@/lib/calendar";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
+import { Calendar } from "lucide-react";
 
 interface WeeklyViewProps {
 	events: CalendarEvent[];
@@ -74,13 +75,16 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 	return (
 		<div className="w-[800px] h-[480px] bg-white text-black font-sans flex flex-col select-none">
 			{/* ===== HEADER SECTION ===== */}
-			<div className="h-[80px] px-8 flex items-center justify-between">
-				<h1 className="text-4xl font-bold">This Week</h1>
-				<p className="text-xl text-black">{weekRangeStr}</p>
+			<div className="h-[60px] px-8 flex items-center justify-between bg-dark-gray">
+				<div className="flex items-center gap-3">
+					<h1 className="text-3xl font-bold text-white">This Week</h1>
+					<Calendar className="w-7 h-7 text-white" strokeWidth={2} />
+				</div>
+				<p className="text-base text-white">Updated: {formatTime(new Date())}</p>
 			</div>
 
 			{/* ===== DAY HEADERS ===== */}
-			<div className="h-[60px] flex border-b border-black">
+			<div className="h-[60px] flex border-b border-black mt-3">
 				{weekDays.map((day, index) => {
 					const isCurrent = isToday(day);
 					const dayAbbr = format(day, "EEE");
@@ -97,7 +101,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 								{dayAbbr}
 							</span>
 							{isCurrent ? (
-								<div className="bg-mid-gray rounded-full w-12 h-12 flex items-center justify-center">
+								<div className="bg-black rounded-full w-12 h-12 flex items-center justify-center">
 									<span className="text-2xl font-bold text-white">{dayNum}</span>
 								</div>
 							) : (
@@ -125,30 +129,29 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 						>
 							{sortedEvents.length === 0 ? null : (
 								<div>
-									{visibleEvents.map((event, eventIdx) => (
-										<div
-											key={eventIdx}
-											className={`px-2 py-2 ${
-												eventIdx < visibleEvents.length - 1 ? "border-b-[3px] border-mid-gray" : ""
-											}`}
-										>
-											{/* Event time (if not all-day) */}
-											{!event.allDay && (
-												<div className="font-bold text-black mb-1 text-sm">
-													{formatTime(event.start)}
-												</div>
-											)}
+									{visibleEvents.map((event, eventIdx) => {
+										const eventText = event.allDay
+											? event.title
+											: `${event.title} @ ${formatTime(event.start)}`;
 
-											{/* Event title */}
+										return (
 											<div
-												className={`${
-													event.allDay ? "font-bold text-base" : "text-sm"
-												} text-black leading-tight`}
+												key={eventIdx}
+												className={`px-2 py-2 ${
+													eventIdx < visibleEvents.length - 1 ? "border-b-[3px] border-mid-gray" : ""
+												}`}
 											>
-												{truncateText(event.title, 20)}
+												{/* Event title with time */}
+												<div
+													className={`${
+														event.allDay ? "font-bold text-base" : "text-sm"
+													} text-black leading-tight`}
+												>
+													{truncateText(eventText, event.allDay ? 20 : 18)}
+												</div>
 											</div>
-										</div>
-									))}
+										);
+									})}
 
 									{/* More events indicator */}
 									{remainingCount > 0 && (
@@ -163,15 +166,6 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 				})}
 			</div>
 
-			{/* ===== FOOTER ===== */}
-			<div className="flex justify-between items-center px-8 pb-4 pt-2">
-				<span className="text-sm text-black">Updated: {formatTime(new Date())}</span>
-				{events.length > 0 && (
-					<span className="text-sm text-black">
-						{events.length} event{events.length !== 1 ? "s" : ""} this week
-					</span>
-				)}
-			</div>
 		</div>
 	);
 }

@@ -56,7 +56,7 @@ export default async function CalendarScreen({ searchParams }: CalendarScreenPro
 	}
 
 	return (
-		<div className="w-[800px] h-[480px] bg-white border-2 border-eink-light-gray">
+		<div className="w-[800px] h-[480px] bg-white">
 			{ViewComponent}
 		</div>
 	);

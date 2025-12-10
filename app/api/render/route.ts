@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import puppeteer from "puppeteer";
 import sharp from "sharp";
-import { getCurrentItem, advanceCycle } from "@/lib/director";
+import { getCurrentItem, advanceCycle, updateBatteryLevel } from "@/lib/director";
 import { getSettings } from "@/lib/settings";
 import type { PlaylistItem } from "@/lib/playlist";
 
@@ -121,6 +121,13 @@ export async function GET(req: NextRequest) {
 	const batteryLevel = searchParams.get("battery") ? parseInt(searchParams.get("battery")!) : null;
 	const screenParam = searchParams.get("screen");
 	const humidityParam = searchParams.get("humidity");
+
+	// Fire and forget: Update battery level if provided
+	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
+		updateBatteryLevel(batteryLevel).catch((err) => {
+			console.error("[Render API] Failed to update battery level:", err);
+		});
+	}
 
 	// CRITICAL: Always generate fresh image on demand for the device
 	// The device only calls this once per wake cycle, so we need fresh content
