@@ -33,12 +33,11 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 	return (
 		<div className="w-[800px] h-[480px] bg-white flex border-2 border-eink-light-gray font-sans">
 			{/* LEFT PANEL - Current Weather (35%) */}
+			{/* Background is mid-gray, Text is forced to black for contrast */}
 			<div className="w-[35%] bg-mid-gray border-r-2 border-eink-light-gray p-6 flex flex-col justify-between">
 				{/* Date Header */}
 				<div className="text-center">
-					<h1 className="text-sm font-bold text-black leading-tight">
-						{getCurrentDate()}
-					</h1>
+					<h1 className="text-sm font-bold text-black leading-tight">{getCurrentDate()}</h1>
 				</div>
 
 				{/* Current Temperature & Icon (Center) */}
@@ -52,40 +51,27 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 				{/* Current Conditions (Footer) */}
 				<div className="space-y-2">
 					<div className="flex items-center gap-3">
-						<Droplets className="w-4 h-4 text-mid-gray" strokeWidth={2} />
-						<span className="text-xs uppercase tracking-widest text-mid-gray w-20">
-							HUMIDITY
-						</span>
-						<span className="text-sm font-bold text-black tabular-nums">
-							{data.current.humidity}%
-						</span>
+						{/* Changed text-mid-gray to text-black */}
+						<Droplets className="w-4 h-4 text-black" strokeWidth={2} />
+						<span className="text-xs uppercase tracking-widest text-black w-20">HUMIDITY</span>
+						<span className="text-sm font-bold text-black tabular-nums">{data.current.humidity}%</span>
 					</div>
 					<div className="flex items-center gap-3">
-						<Wind className="w-4 h-4 text-mid-gray" strokeWidth={2} />
-						<span className="text-xs uppercase tracking-widest text-mid-gray w-20">
-							WIND
-						</span>
+						<Wind className="w-4 h-4 text-black" strokeWidth={2} />
+						<span className="text-xs uppercase tracking-widest text-black w-20">WIND</span>
 						<span className="text-sm font-bold text-black tabular-nums">
 							{data.current.windDir} {data.current.windSpeed} km/h
 						</span>
 					</div>
 					<div className="flex items-center gap-3">
-						<Sunrise className="w-4 h-4 text-mid-gray" strokeWidth={2} />
-						<span className="text-xs uppercase tracking-widest text-mid-gray w-20">
-							SUNRISE
-						</span>
-						<span className="text-sm font-bold text-black tabular-nums">
-							{data.current.sunrise}
-						</span>
+						<Sunrise className="w-4 h-4 text-black" strokeWidth={2} />
+						<span className="text-xs uppercase tracking-widest text-black w-20">SUNRISE</span>
+						<span className="text-sm font-bold text-black tabular-nums">{data.current.sunrise}</span>
 					</div>
 					<div className="flex items-center gap-3">
-						<Sunset className="w-4 h-4 text-mid-gray" strokeWidth={2} />
-						<span className="text-xs uppercase tracking-widest text-mid-gray w-20">
-							SUNSET
-						</span>
-						<span className="text-sm font-bold text-black tabular-nums">
-							{data.current.sunset}
-						</span>
+						<Sunset className="w-4 h-4 text-black" strokeWidth={2} />
+						<span className="text-xs uppercase tracking-widest text-black w-20">SUNSET</span>
+						<span className="text-sm font-bold text-black tabular-nums">{data.current.sunset}</span>
 					</div>
 				</div>
 			</div>
@@ -94,9 +80,7 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 			<div className="w-[65%] bg-white flex flex-col">
 				{/* Header */}
 				<div className="border-b-2 border-eink-light-gray px-6 py-2 flex justify-end items-center">
-					<p className="text-sm font-bold text-black">
-						{data.location}
-					</p>
+					<p className="text-sm font-bold text-black">{data.location}</p>
 				</div>
 
 				{/* Forecast List */}
@@ -106,18 +90,11 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 						const precipProb = parseInt(day.precipitaProb);
 
 						return (
-							<div
-								key={index}
-								className="border-b border-eink-light-gray px-6 py-4 flex items-center gap-5"
-							>
+							<div key={index} className="border-b border-eink-light-gray px-6 py-4 flex items-center gap-5">
 								{/* Day & Date */}
 								<div className="w-24 flex items-baseline gap-2 tabular-nums">
-									<span className="text-base font-bold text-black">
-										{getDayName(day.forecastDate)}
-									</span>
-									<span className="text-sm text-mid-gray">
-										{getDateNum(day.forecastDate)}
-									</span>
+									<span className="text-base font-bold text-black">{getDayName(day.forecastDate)}</span>
+									<span className="text-sm text-mid-gray">{getDateNum(day.forecastDate)}</span>
 								</div>
 
 								{/* Weather Icon */}
@@ -128,9 +105,7 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 								{/* Precipitation (Only if > 0) */}
 								<div className="w-14 text-center">
 									{precipProb > 0 && (
-										<span className="text-sm font-bold text-mid-gray tabular-nums">
-											{day.precipitaProb}%
-										</span>
+										<span className="text-sm font-bold text-mid-gray tabular-nums">{day.precipitaProb}%</span>
 									)}
 								</div>
 
@@ -141,12 +116,9 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 										{Math.round(parseFloat(day.tMin))}°
 									</span>
 
-									{/* Visual Bar */}
+									{/* Visual Bar - Uses mid-gray on white background */}
 									<div className="w-20 h-1.5 bg-eink-light-gray rounded-full relative overflow-hidden">
-										<div
-											className="absolute inset-y-0 left-0 bg-mid-gray rounded-full"
-											style={{ width: '70%' }}
-										/>
+										<div className="absolute inset-y-0 left-0 bg-mid-gray rounded-full" style={{ width: "70%" }} />
 									</div>
 
 									{/* Max Temp */}
