@@ -76,7 +76,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 			{/* ===== HEADER SECTION ===== */}
 			<div className="h-[80px] px-8 flex items-center justify-between">
 				<h1 className="text-4xl font-bold">This Week</h1>
-				<p className="text-xl text-mid-gray">{weekRangeStr}</p>
+				<p className="text-xl text-black">{weekRangeStr}</p>
 			</div>
 
 			{/* ===== DAY HEADERS ===== */}
@@ -90,15 +90,13 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 						<div
 							key={index}
 							className={`flex-1 flex flex-col items-center justify-center ${
-								isCurrent ? "bg-eink-light-gray" : ""
+								isCurrent ? "bg-mid-gray" : ""
 							} ${index > 0 ? "border-l border-eink-light-gray" : ""}`}
 						>
-							<span className={`text-base font-bold ${isCurrent ? "text-black" : "text-dark-gray"}`}>
+							<span className="text-base font-bold text-black">
 								{dayAbbr}
 							</span>
-							<span
-								className={`${isCurrent ? "text-2xl font-bold text-black" : "text-xl text-mid-gray"}`}
-							>
+							<span className={`${isCurrent ? "text-2xl font-bold" : "text-xl"} text-black`}>
 								{dayNum}
 							</span>
 						</div>
@@ -123,18 +121,18 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 						>
 							{sortedEvents.length === 0 ? (
 								<div className="flex-1 flex items-start justify-center pt-4">
-									<p className="text-sm text-mid-gray italic">No events</p>
+									<p className="text-sm text-black italic">No events</p>
 								</div>
 							) : (
-								<div className="space-y-2">
+								<div className="space-y-1">
 									{visibleEvents.map((event, eventIdx) => (
 										<div
 											key={eventIdx}
-											className="bg-white border border-eink-light-gray px-1 py-1 text-xs"
+											className="bg-mid-gray px-2 py-1.5 text-xs border-b border-black last:border-b-0"
 										>
 											{/* Event time (if not all-day) */}
 											{!event.allDay && (
-												<div className="font-bold text-mid-gray mb-0.5">
+												<div className="font-bold text-black mb-0.5">
 													{formatTime(event.start)}
 												</div>
 											)}
@@ -152,7 +150,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 
 									{/* More events indicator */}
 									{remainingCount > 0 && (
-										<p className="text-xs text-mid-gray italic text-center pt-1">
+										<p className="text-xs text-black italic text-center pt-1">
 											+{remainingCount} more
 										</p>
 									)}
@@ -165,9 +163,9 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 
 			{/* ===== FOOTER ===== */}
 			<div className="flex justify-between items-center px-8 pb-4 pt-2">
-				<span className="text-sm text-mid-gray">Updated: {formatTime(new Date())}</span>
+				<span className="text-sm text-black">Updated: {formatTime(new Date())}</span>
 				{events.length > 0 && (
-					<span className="text-sm text-mid-gray">
+					<span className="text-sm text-black">
 						{events.length} event{events.length !== 1 ? "s" : ""} this week
 					</span>
 				)}

@@ -68,9 +68,12 @@ async function generateImage(batteryLevel: number | null, screenParam: string | 
 		}
 
 		// Launch Puppeteer
+		// In production (Docker), use the specific Chromium path
+		// In development, let Puppeteer find Chrome automatically
+		const isProduction = process.env.NODE_ENV === "production";
 		const browser = await puppeteer.launch({
 			headless: true,
-			executablePath: "/usr/bin/chromium-browser",
+			...(isProduction && { executablePath: "/usr/bin/chromium-browser" }),
 			args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
 			ignoreDefaultArgs: ["--enable-automation"],
 		});
