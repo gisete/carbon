@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import puppeteer from "puppeteer";
 import sharp from "sharp";
-import { getCurrentItem, advanceCycle, updateBatteryLevel } from "@/lib/director";
+import { getCurrentItem, advanceCycle, updateBatteryLevel, getDirectorState } from "@/lib/director";
 import { getSettings } from "@/lib/settings";
 import type { PlaylistItem } from "@/lib/playlist";
 
@@ -35,7 +35,7 @@ function buildScreenUrl(item: PlaylistItem | null): string {
 /**
  * GENERATOR
  */
-async function generateImage(batteryLevel: number | null, screenParam: string | null, humidityParam: string | null) {
+async function generateImage(batteryParam: number | null, screenParam: string | null, humidityParam: string | null) {
 	if (isGenerating) {
 		console.log("[Render] Already generating, waiting...");
 		// Wait for current generation to complete
@@ -49,6 +49,16 @@ async function generateImage(batteryLevel: number | null, screenParam: string | 
 	console.log("[Render] Starting generation...");
 
 	try {
+		// 1. Resolve Battery Level (Priority: URL Param > Saved State)
+		let batteryLevel = batteryParam;
+		if (batteryLevel === null) {
+			const state = await getDirectorState();
+			if (state.batteryLevel !== undefined) {
+				batteryLevel = state.batteryLevel;
+				console.log(`[Render] Using saved battery level: ${batteryLevel}%`);
+			}
+		}
+
 		let targetUrl: string;
 
 		if (screenParam) {
@@ -122,11 +132,22 @@ export async function GET(req: NextRequest) {
 	const screenParam = searchParams.get("screen");
 	const humidityParam = searchParams.get("humidity");
 
+	// Log all query parameters for debugging
+	console.log("[Render API] Query params:", {
+		battery: searchParams.get("battery"),
+		batteryLevel,
+		screen: screenParam,
+		humidity: humidityParam,
+	});
+
 	// Fire and forget: Update battery level if provided
 	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
+		console.log("[Render API] Updating battery level to:", batteryLevel);
 		updateBatteryLevel(batteryLevel).catch((err) => {
 			console.error("[Render API] Failed to update battery level:", err);
 		});
+	} else {
+		console.log("[Render API] No valid battery level received");
 	}
 
 	// CRITICAL: Always generate fresh image on demand for the device
