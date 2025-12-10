@@ -39,6 +39,8 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 			subtitle = viewMode === "current" ? "Current Conditions" : "7-Day Forecast";
 		} else if (item.type === "custom-text") {
 			subtitle = config.text ? "Message configured" : "No message set";
+		} else if (item.type === "logo") {
+			subtitle = config.fontSize ? `Size: ${config.fontSize}px` : "Default Size";
 		}
 
 		const updatedItem: PlaylistItem = {

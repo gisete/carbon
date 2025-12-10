@@ -23,6 +23,10 @@ function buildScreenUrl(item: PlaylistItem | null): string {
 			return `${baseUrl}/screens/calendar?view=${item.config?.viewMode || "daily"}`;
 		case "custom-text":
 			return `${baseUrl}/screens/custom-text?text=${encodeURIComponent(item.config?.text || "")}`;
+		// --- ADD THIS BLOCK ---
+		case "logo":
+			return `${baseUrl}/screens/logo?fontSize=${item.config?.fontSize || "120"}`;
+		// ----------------------
 		default:
 			return `${baseUrl}/screens/weather`;
 	}
