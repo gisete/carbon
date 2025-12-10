@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Clock, Play, List, Calendar, Cloud, Type, Moon } from "lucide-react";
+import { Clock, Play, List, Calendar, Cloud, Type, Moon, Battery } from "lucide-react";
 import { getActivePlaylistItems, tickDirector } from "@/app/actions";
 import type { PlaylistItem } from "@/lib/playlist";
 import type { DirectorStatus } from "@/lib/director";
@@ -99,11 +99,30 @@ export default function SimulatorPage() {
 					{/* LEFT: Device Screen */}
 					<div>
 						<div className="bg-neutral-800 p-6 rounded-lg w-fit">
-							<div className="flex items-center gap-3 mb-4">
-								<div className={`w-3 h-3 rounded-full ${isSleeping ? "bg-amber-500" : "bg-green-500"}`}></div>
-								<span className="text-sm font-mono text-gray-400">
-									{isSleeping ? "DEVICE SLEEPING (NIGHT MODE)" : "DEVICE ACTIVE"}
-								</span>
+							<div className="flex items-center justify-between mb-4">
+								<div className="flex items-center gap-3">
+									<div className={`w-3 h-3 rounded-full ${isSleeping ? "bg-amber-500" : "bg-green-500"}`}></div>
+									<span className="text-sm font-mono text-gray-400">
+										{isSleeping ? "DEVICE SLEEPING (NIGHT MODE)" : "DEVICE ACTIVE"}
+									</span>
+								</div>
+								{/* Battery Indicator */}
+								{directorStatus?.batteryLevel !== undefined && directorStatus?.batteryLevel !== null && (
+									<div className="flex items-center gap-2">
+										<Battery
+											className={`w-4 h-4 ${
+												directorStatus.batteryLevel <= 20 ? "text-red-500" : "text-green-500"
+											}`}
+										/>
+										<span
+											className={`text-sm font-mono ${
+												directorStatus.batteryLevel <= 20 ? "text-red-500" : "text-green-500"
+											}`}
+										>
+											{Math.round(directorStatus.batteryLevel)}%
+										</span>
+									</div>
+								)}
 							</div>
 
 							<div className="border-4 border-black bg-white relative overflow-hidden" style={{ width: "800px", height: "480px" }}>

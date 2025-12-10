@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { tick } from "@/lib/director";
+import { tick, updateBatteryLevel } from "@/lib/director";
 import { getSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +87,13 @@ export async function GET(req: NextRequest) {
 	const searchParams = req.nextUrl.searchParams;
 	const batteryParam = searchParams.get("battery");
 	const batteryLevel = batteryParam ? parseFloat(batteryParam) : null;
+
+	// Fire and forget: Update battery level if provided
+	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
+		updateBatteryLevel(batteryLevel).catch((err) => {
+			console.error("[Sleep API] Failed to update battery level:", err);
+		});
+	}
 
 	try {
 		const settings = await getSettings();

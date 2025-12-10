@@ -10,6 +10,7 @@ interface DirectorState {
 	lastSwitchTime: number; // Timestamp in milliseconds
 	lastUpdate: string;
 	activePlaylistId: string | null; // Track which playlist is currently active
+	batteryLevel?: number; // Battery level from device (0-100)
 }
 
 export interface DirectorStatus {
@@ -20,6 +21,7 @@ export interface DirectorStatus {
 	activePlaylistId: string | null; // Which playlist is currently active
 	activePlaylistName: string | null; // Name of active playlist
 	isSleeping: boolean; // NEW: Explicit sleep state
+	batteryLevel?: number; // Battery level from device (0-100)
 }
 
 // --- FILE PATHS ---
@@ -257,6 +259,30 @@ export async function getDirectorState(): Promise<DirectorState> {
 	return await getState();
 }
 
+/**
+ * Update battery level in the director state
+ * @param level Battery level (0-100)
+ */
+export async function updateBatteryLevel(level: number): Promise<void> {
+	// Validate battery level
+	if (typeof level !== "number" || level < 0 || level > 100) {
+		console.warn("[Director] Invalid battery level:", level);
+		return;
+	}
+
+	const state = await getState();
+
+	// Only save if battery level has changed
+	if (state.batteryLevel !== level) {
+		const newState: DirectorState = {
+			...state,
+			batteryLevel: level,
+		};
+		await saveState(newState);
+		if (DEBUG) console.log("[Director] Updated battery level:", level);
+	}
+}
+
 export async function tick(): Promise<DirectorStatus> {
 	const settings = await getSettings();
 	const now = Date.now();
@@ -264,6 +290,7 @@ export async function tick(): Promise<DirectorStatus> {
 	// Check SLEEP MODE
 	if (!isWithinActiveWindow(settings.system.startTime, settings.system.endTime)) {
 		if (DEBUG) console.log("[Director Tick] Outside active window - SLEEPING");
+		const state = await getState();
 		return {
 			currentItem: null,
 			nextSwitchTime: now + 60000,
@@ -272,6 +299,7 @@ export async function tick(): Promise<DirectorStatus> {
 			activePlaylistId: null,
 			activePlaylistName: null,
 			isSleeping: true, // <--- REPORT SLEEP STATE
+			batteryLevel: state.batteryLevel,
 		};
 	}
 
@@ -295,6 +323,7 @@ export async function tick(): Promise<DirectorStatus> {
 			activePlaylistId: null,
 			activePlaylistName: null,
 			isSleeping: false,
+			batteryLevel: state.batteryLevel,
 		};
 	}
 
@@ -309,6 +338,7 @@ export async function tick(): Promise<DirectorStatus> {
 			activePlaylistId: activePlaylist.id,
 			activePlaylistName: activePlaylist.name,
 			isSleeping: false,
+			batteryLevel: state.batteryLevel,
 		};
 	}
 
@@ -342,6 +372,7 @@ export async function tick(): Promise<DirectorStatus> {
 		const nextDuration = (nextItem.duration || settings.system.refreshInterval) * 60 * 1000;
 		const nextEndTime = now + nextDuration;
 
+		const updatedState = await getState();
 		return {
 			currentItem: nextItem,
 			nextSwitchTime: nextEndTime,
@@ -350,9 +381,11 @@ export async function tick(): Promise<DirectorStatus> {
 			activePlaylistId: activePlaylist.id,
 			activePlaylistName: activePlaylist.name,
 			isSleeping: false,
+			batteryLevel: updatedState.batteryLevel,
 		};
 	}
 
+	const finalState = await getState();
 	return {
 		currentItem,
 		nextSwitchTime: itemEndTime,
@@ -361,5 +394,6 @@ export async function tick(): Promise<DirectorStatus> {
 		activePlaylistId: activePlaylist.id,
 		activePlaylistName: activePlaylist.name,
 		isSleeping: false,
+		batteryLevel: finalState.batteryLevel,
 	};
 }

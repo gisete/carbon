@@ -80,7 +80,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 			</div>
 
 			{/* ===== DAY HEADERS ===== */}
-			<div className="h-[60px] flex border-b-[3px] border-mid-gray">
+			<div className="h-[60px] flex border-b border-black">
 				{weekDays.map((day, index) => {
 					const isCurrent = isToday(day);
 					const dayAbbr = format(day, "EEE");
@@ -90,7 +90,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 						<div
 							key={index}
 							className={`flex-1 flex flex-col items-center justify-center gap-1 pb-2 ${
-								index > 0 ? "border-l-[3px] border-mid-gray" : ""
+								index > 0 ? "border-l border-black" : ""
 							}`}
 						>
 							<span className="text-base font-bold text-black">
@@ -98,7 +98,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 							</span>
 							{isCurrent ? (
 								<div className="bg-mid-gray rounded-full w-12 h-12 flex items-center justify-center">
-									<span className="text-2xl font-bold text-black">{dayNum}</span>
+									<span className="text-2xl font-bold text-white">{dayNum}</span>
 								</div>
 							) : (
 								<span className="text-xl text-black">{dayNum}</span>
@@ -120,7 +120,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 						<div
 							key={index}
 							className={`flex-1 flex flex-col px-1 py-3 ${
-								index > 0 ? "border-l-[3px] border-mid-gray" : ""
+								index > 0 ? "border-l border-black" : ""
 							}`}
 						>
 							{sortedEvents.length === 0 ? null : (
@@ -128,13 +128,13 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 									{visibleEvents.map((event, eventIdx) => (
 										<div
 											key={eventIdx}
-											className={`px-2 py-2 text-xs ${
+											className={`px-2 py-2 ${
 												eventIdx < visibleEvents.length - 1 ? "border-b-[3px] border-mid-gray" : ""
 											}`}
 										>
 											{/* Event time (if not all-day) */}
 											{!event.allDay && (
-												<div className="font-bold text-black mb-0.5">
+												<div className="font-bold text-black mb-1 text-sm">
 													{formatTime(event.start)}
 												</div>
 											)}
@@ -142,7 +142,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 											{/* Event title */}
 											<div
 												className={`${
-													event.allDay ? "font-bold text-sm" : "text-xs"
+													event.allDay ? "font-bold text-base" : "text-sm"
 												} text-black leading-tight`}
 											>
 												{truncateText(event.title, 20)}
