@@ -30,7 +30,7 @@
 	--font-serif: var(--font-serif);
 	--font-mono: var(--font-mono);
 	--font-eink-sans: var(--font-eink-sans);
-	--font-eink-serif: var(--font-chareink);
+	--font-eink-serif: var(--font-eink-serif);
 
 	/* Border Radius */
 	--radius-sm: 2px;

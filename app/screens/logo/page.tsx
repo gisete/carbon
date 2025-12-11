@@ -26,7 +26,7 @@ export default async function LogoScreen({ searchParams }: LogoScreenProps) {
 					className={`font-bold text-black leading-none tracking-wider ${silkscreen.className}`}
 					style={{ fontSize: `${fontSize}px` }}
 				>
-					<span className="text-eink-dark-gray">C</span>
+					<span className="text-eink-light-gray">C</span>
 					<span>ARBON</span>
 				</div>
 				<div

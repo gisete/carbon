@@ -50,7 +50,7 @@ const chareInk = localFont({
 			style: "normal",
 		},
 	],
-	variable: "--font-chareink",
+	variable: "--font-eink-serif",
 });
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
