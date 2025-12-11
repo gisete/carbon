@@ -98,17 +98,17 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 		const screenshotBuffer = await page.screenshot({ type: "png" });
 		await browser.close();
 
-		// Process Image
+		// Process Image - 4-bit Grayscale for TRMNL firmware
 		imageCache = await sharp(screenshotBuffer)
 			.resize(800, 480, {
 				fit: "contain",
 				background: { r: 255, g: 255, b: 255 },
 			})
-			.grayscale() // Ensure input is gray
+			.grayscale() // Convert to grayscale
 			.png({
 				palette: true,
-				colors: 2, // Force 1-bit (Black & White)
-				dither: 1.0, // 100% Dithering (Simulates Grayscale)
+				colors: 16, // 4-bit grayscale (16 shades)
+				dither: 0, // Disable dithering - let firmware's waveform handle it
 			})
 			.toBuffer();
 
