@@ -9,11 +9,18 @@ import { getSettings } from "@/lib/settings";
 export const dynamic = "force-dynamic";
 
 // --- PALETTE CONSTANTS ---
+// 1-Bit Palette: Pure Black and White
+const PALETTE_1BIT = Buffer.from([
+	0, 0, 0,           // Black (#000000)
+	255, 255, 255      // White (#FFFFFF)
+]);
+
+// 2-Bit Palette: TRMNL-compatible 4-shade grayscale
 const PALETTE_2BIT = Buffer.from([
-	0, 0, 0,           // Black
-	85, 85, 85,        // Dark Gray
-	170, 170, 170,     // Light Gray
-	255, 255, 255      // White
+	0, 0, 0,           // Black (#000000)
+	85, 85, 85,        // Dark Gray (#555555 - ~33% Gray)
+	170, 170, 170,     // Light Gray (#AAAAAA - ~66% Gray)
+	255, 255, 255      // White (#FFFFFF)
 ]);
 
 // --- GLOBAL CACHE ---
@@ -164,8 +171,8 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 			.grayscale();
 
 		if (bitDepth === 2) {
-			// 2-bit: Use palette with 4 colors and dithering
-			console.log("[Render] Using 2-bit mode with 4-color palette");
+			// 2-bit: Use strict 4-color palette mapping with dithering
+			console.log("[Render] Using 2-bit mode with TRMNL 4-color palette");
 			imageCache = await sharpPipeline
 				.png({
 					palette: true,
@@ -174,10 +181,15 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 				})
 				.toBuffer();
 		} else {
-			// 1-bit: Use threshold for pure black and white
-			console.log("[Render] Using 1-bit mode with threshold");
+			// 1-bit: Use dithering for 2-color black/white output
+			// This creates patterns (like checkerboard) to represent mid-tones
+			console.log("[Render] Using 1-bit mode with Floyd-Steinberg dithering");
 			imageCache = await sharpPipeline
-				.threshold(128)
+				.png({
+					palette: true,
+					colors: 2,
+					dither: 1.0,
+				})
 				.toBuffer();
 		}
 

@@ -11,10 +11,10 @@
 	--color-pure-white: #ffffff;
 	--color-light-gray: #e7e5e4;
 
-	/* E-Ink Specific Colors (TRMNL 2-bit Grayscale Palette) */
+	/* E-Ink Specific Colors (TRMNL 2-bit Palette) */
 	--color-eink-black: #000000;
-	--color-eink-dark-gray: #555555;
-	--color-eink-light-gray: #AAAAAA;
+	--color-eink-dark-gray: #555555;  /* ~33% Gray */
+	--color-eink-light-gray: #AAAAAA; /* ~66% Gray */
 	--color-eink-white: #FFFFFF;
 
 	/* Spacing */
