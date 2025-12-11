@@ -13,7 +13,7 @@ let lastGeneratedTime = 0;
 let isGenerating = false;
 
 function buildScreenUrl(item: PlaylistItem | null): string {
-	const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+	const baseUrl = process.env.BASE_URL || "http://localhost:3000";
 	if (!item) return `${baseUrl}/screens/weather?view=current`;
 
 	switch (item.type) {
@@ -62,7 +62,7 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 		let targetUrl: string;
 
 		if (screenParam) {
-			const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+			const baseUrl = process.env.BASE_URL || "http://localhost:3000";
 			targetUrl = `${baseUrl}/screens/${screenParam}?humidity=${humidityParam || ""}`;
 		} else {
 			// 1. Get the ITEM that SHOULD be shown NOW

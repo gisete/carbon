@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 		const sleepSeconds = calculateSyncedSleep(status.nextSwitchTime, batteryLevel, isNight, startTime);
 
 		// 4. Construct absolute image URL
-		const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+		const baseUrl = process.env.BASE_URL || "http://localhost:3000";
 		const timestamp = Date.now();
 		const screenId = status.currentItem?.id || "default";
 		const imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}`;
