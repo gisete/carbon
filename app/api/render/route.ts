@@ -134,8 +134,9 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 		});
 
 		// Forward page errors
-		page.on('pageerror', (error: Error) => {
-			console.error(`[Page Error] ${error.message}`);
+		page.on('pageerror', (error) => {
+			const message = error instanceof Error ? error.message : String(error);
+			console.error(`[Page Error] ${message}`);
 		});
 
 		// Forward request failures
