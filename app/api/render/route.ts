@@ -51,7 +51,7 @@ function buildScreenUrl(item: PlaylistItem | null): string {
 /**
  * GENERATOR
  */
-async function generateImage(batteryParam: number | null, screenParam: string | null, humidityParam: string | null) {
+async function generateImage(batteryParam: number | null, screenParam: string | null, humidityParam: string | null, invertParam: boolean) {
 	if (isGenerating) {
 		console.log("[Render] Already generating, waiting...");
 		while (isGenerating) {
@@ -167,8 +167,15 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 			.resize(800, 480, {
 				fit: "contain",
 				background: { r: 255, g: 255, b: 255 },
-			})
-			.grayscale();
+			});
+
+		// If inverted, flip the pixels (White becomes Black)
+		if (invertParam) {
+			console.log("[Render] Inverting image for device");
+			sharpPipeline = sharpPipeline.negate();
+		}
+
+		sharpPipeline = sharpPipeline.grayscale();
 
 		if (bitDepth === 2) {
 			// 2-bit: Use strict 4-color palette mapping with dithering
@@ -207,6 +214,7 @@ export async function GET(req: NextRequest) {
 	const batteryLevel = searchParams.get("battery") ? parseInt(searchParams.get("battery")!) : null;
 	const screenParam = searchParams.get("screen");
 	const humidityParam = searchParams.get("humidity");
+	const invertParam = searchParams.get("invert") === "true";
 
 	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
 		updateBatteryLevel(batteryLevel).catch((err) => {
@@ -215,7 +223,7 @@ export async function GET(req: NextRequest) {
 	}
 
 	console.log("[Render] Device requesting image...");
-	await generateImage(batteryLevel, screenParam, humidityParam);
+	await generateImage(batteryLevel, screenParam, humidityParam, invertParam);
 
 	if (!imageCache) {
 		return NextResponse.json({ error: "Generation failed" }, { status: 500 });
