@@ -1,14 +1,6 @@
 import * as ical from "node-ical";
 import { getSettings } from "./settings";
-import {
-	startOfDay,
-	endOfDay,
-	startOfWeek,
-	endOfWeek,
-	startOfMonth,
-	endOfMonth,
-	isSameDay,
-} from "date-fns";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay } from "date-fns";
 
 // --- TYPES ---
 
@@ -58,11 +50,7 @@ function getWeekEnd(date: Date, weekStartDay: "sunday" | "monday" = "sunday"): D
  * Filter events within a date range.
  * Includes events that start, end, or span across the range.
  */
-function getEventsInRange(
-	events: CalendarEvent[],
-	start: Date,
-	end: Date
-): CalendarEvent[] {
+function getEventsInRange(events: CalendarEvent[], start: Date, end: Date): CalendarEvent[] {
 	return events.filter((event) => {
 		return (
 			(event.start >= start && event.start < end) ||
@@ -84,10 +72,7 @@ function getEventsInRange(
  * 2. Falls back to global settings if no URL provided
  * This allows multiple calendar plugins to show different calendars
  */
-export async function getCalendarEvents(
-	view: CalendarView = "daily",
-	icalUrl?: string
-): Promise<CalendarEvent[]> {
+export async function getCalendarEvents(view: CalendarView = "daily", icalUrl?: string): Promise<CalendarEvent[]> {
 	try {
 		// Priority: playlist item config > global settings
 		let calendarUrl = icalUrl;
@@ -105,16 +90,21 @@ export async function getCalendarEvents(
 		// Normalize the URL (add /webcal for iCloud URLs)
 		calendarUrl = normalizeCalendarUrl(calendarUrl);
 
+		console.log("[Calendar] Fetching iCal URL:", calendarUrl);
+
 		// Fetch the iCal feed with Next.js caching (15 minutes)
 		const response = await fetch(calendarUrl, {
-			next: { revalidate: 900 },
+			cache: "no-store", // <--- Forces a fresh fetch on every request
+			// next: { revalidate: 0 }, // Alternative way to say "expire immediately"
 			headers: {
-				"Accept": "text/calendar",
+				Accept: "text/calendar",
 				"Cache-Control": "no-cache, no-store, must-revalidate",
 				Pragma: "no-cache",
 				Expires: "0",
 			},
 		});
+
+		console.log("[Calendar] Response Status:", response.status);
 
 		if (!response.ok) {
 			console.error(`Failed to fetch calendar from ${calendarUrl}: ${response.status} ${response.statusText}`);
@@ -125,6 +115,7 @@ export async function getCalendarEvents(
 
 		// Parse the iCal data
 		const events = ical.sync.parseICS(icsData);
+		console.log("[Calendar] Raw ICS entries found:", Object.keys(events).length);
 
 		// Process all events first
 		const allEvents: CalendarEvent[] = [];
@@ -145,8 +136,11 @@ export async function getCalendarEvents(
 			const start = eventStart instanceof Date ? eventStart : new Date(eventStart);
 			const end = eventEnd instanceof Date ? eventEnd : new Date(eventEnd || eventStart);
 
-			// Determine if all-day event (check if start has dateOnly property or no time component)
-			const allDay = !(eventStart as any).dateTime;
+			// Determine if all-day event
+			// Check multiple indicators: dateOnly property, or if time is exactly midnight
+			const hasDateOnly = (eventStart as any).dateOnly === true;
+			const isMidnight = start.getHours() === 0 && start.getMinutes() === 0 && start.getSeconds() === 0;
+			const allDay = hasDateOnly || (isMidnight && event.datetype === 'date');
 
 			allEvents.push({
 				title: event.summary || "Untitled Event",
@@ -164,9 +158,11 @@ export async function getCalendarEvents(
 
 		switch (view) {
 			case "daily": {
+				console.log("[Calendar] Server 'Now':", new Date().toString());
 				// Get events for today
 				const dayStart = startOfDay(now);
 				const dayEnd = endOfDay(now);
+				console.log(`[Calendar Debug] Filtering for range: ${dayStart} to ${dayEnd}`);
 
 				filteredEvents = allEvents.filter((event) => {
 					// Event overlaps with today
@@ -188,16 +184,13 @@ export async function getCalendarEvents(
 
 			case "weekly": {
 				// Get events for this week
-				const weekStart = getWeekStart(now);
-				const weekEnd = getWeekEnd(now);
+				const weekStart = getWeekStart(now, "monday");
+				const weekEnd = getWeekEnd(now, "monday");
 
 				filteredEvents = getEventsInRange(allEvents, weekStart, weekEnd);
 
-				// Filter out past events (except all-day events)
-				const currentTime = now;
-				filteredEvents = filteredEvents.filter((event) => {
-					return event.end >= currentTime || event.allDay;
-				});
+				// Don't filter out past events for weekly view - show all events in the week
+				// Users want to see what happened earlier in the week
 
 				break;
 			}
@@ -224,6 +217,8 @@ export async function getCalendarEvents(
 
 		// Sort by start time (ascending)
 		filteredEvents.sort((a, b) => a.start.getTime() - b.start.getTime());
+
+		console.log("[Calendar] Filtered events returning:", filteredEvents.length);
 
 		return filteredEvents;
 	} catch (error) {

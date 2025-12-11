@@ -30,13 +30,18 @@ const getEventsForDay = (events: CalendarEvent[], day: Date): CalendarEvent[] =>
 	});
 };
 
-// Helper to format time (24h format)
+// Helper to format time (12h format)
 const formatTime = (date: Date): string => {
 	const hours = date.getHours();
 	const minutes = date.getMinutes();
-	const h = hours.toString().padStart(2, "0");
-	const m = minutes.toString().padStart(2, "0");
-	return `${h}:${m}`;
+	const hour12 = hours % 12 || 12;
+	const ampm = hours >= 12 ? "pm" : "am";
+
+	// Only show minutes if not :00
+	if (minutes === 0) {
+		return `${hour12}${ampm}`;
+	}
+	return `${hour12}:${minutes.toString().padStart(2, "0")}${ampm}`;
 };
 
 // Helper to format date range
@@ -147,7 +152,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 														event.allDay ? "font-bold text-base" : "text-sm"
 													} text-black leading-tight`}
 												>
-													{truncateText(eventText, event.allDay ? 20 : 18)}
+													{truncateText(eventText, event.allDay ? 20 : 30)}
 												</div>
 											</div>
 										);

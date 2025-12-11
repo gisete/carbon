@@ -206,6 +206,15 @@ export async function getPlaylistCollection(): Promise<PlaylistCollection> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const data = await fs.readFile(PLAYLIST_FILE, 'utf-8');
+
+      // Handle empty file (corrupted state)
+      if (!data || data.trim() === '') {
+        console.warn('[playlist] Empty playlist file detected, creating default collection');
+        const collection = createDefaultCollection([]);
+        await savePlaylistCollection(collection);
+        return collection;
+      }
+
       const parsed = JSON.parse(data);
 
       // Check if this is the old format (array) or new format (object with playlists)
@@ -274,7 +283,14 @@ export async function savePlaylistCollection(collection: PlaylistCollection): Pr
     await fs.copyFile(tempFile, PLAYLIST_FILE);
 
     // Clean up temp file after successful copy
-    await fs.unlink(tempFile);
+    try {
+      await fs.unlink(tempFile);
+    } catch (unlinkError: any) {
+      // Ignore ENOENT errors (file already deleted due to race condition)
+      if (unlinkError.code !== 'ENOENT') {
+        console.warn('[Playlist] Failed to cleanup temp file:', unlinkError);
+      }
+    }
 
     console.log('[Playlist] Successfully saved playlist collection');
   } catch (error) {
