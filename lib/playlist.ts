@@ -262,13 +262,20 @@ export async function getPlaylistCollection(): Promise<PlaylistCollection> {
 export async function savePlaylistCollection(collection: PlaylistCollection): Promise<void> {
   await ensureDataDir();
 
-  // Use atomic write: write to temp file, then rename
+  // Use atomic write: write to temp file, then copy+delete
   const tempFile = PLAYLIST_FILE + '.tmp';
   const jsonData = JSON.stringify(collection, null, 2);
 
   try {
     await fs.writeFile(tempFile, jsonData, 'utf-8');
-    await fs.rename(tempFile, PLAYLIST_FILE);
+
+    // Use copyFile instead of rename for better cross-platform compatibility
+    // This works even if the destination exists
+    await fs.copyFile(tempFile, PLAYLIST_FILE);
+
+    // Clean up temp file after successful copy
+    await fs.unlink(tempFile);
+
     console.log('[Playlist] Successfully saved playlist collection');
   } catch (error) {
     // Clean up temp file if it exists
