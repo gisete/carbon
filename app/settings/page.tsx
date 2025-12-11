@@ -11,6 +11,7 @@ interface SystemConfig {
 	refreshInterval: string;
 	startTime: string; // Device Wake Time
 	endTime: string; // Device Sleep Time
+	bitDepth: string; // "1" or "2"
 }
 
 // Generate time options in 15-minute intervals
@@ -35,6 +36,7 @@ export default function SettingsPage() {
 		refreshInterval: "30",
 		startTime: "07:00",
 		endTime: "23:00",
+		bitDepth: "1",
 	});
 
 	// Load settings on mount
@@ -47,6 +49,7 @@ export default function SettingsPage() {
 					refreshInterval: settings.system.refreshInterval.toString(),
 					startTime: settings.system.startTime || "07:00",
 					endTime: settings.system.endTime || "23:00",
+					bitDepth: settings.system.bitDepth.toString(),
 				});
 			} catch (error) {
 				console.error("Failed to load settings:", error);
@@ -68,6 +71,7 @@ export default function SettingsPage() {
 					refreshInterval: parseInt(systemConfig.refreshInterval),
 					startTime: systemConfig.startTime,
 					endTime: systemConfig.endTime,
+					bitDepth: parseInt(systemConfig.bitDepth) as 1 | 2,
 				},
 			});
 			console.log("Settings saved successfully");
