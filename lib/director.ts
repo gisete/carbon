@@ -81,7 +81,9 @@ async function saveState(state: DirectorState): Promise<void> {
 
 	try {
 		await fs.writeFile(tempFile, jsonData, "utf-8");
-		await fs.rename(tempFile, STATE_FILE);
+		// Use copyFile instead of rename for better cross-platform compatibility
+		await fs.copyFile(tempFile, STATE_FILE);
+		await fs.unlink(tempFile);
 	} catch (error) {
 		try {
 			await fs.unlink(tempFile);
@@ -210,6 +212,7 @@ export async function getCurrentItem(): Promise<PlaylistItem | null> {
 	if (needsReset) {
 		if (DEBUG) console.log("[Director] Playlist changed or index out of bounds, resetting cycle");
 		const newState: DirectorState = {
+			...state,
 			currentCycleIndex: 0,
 			lastSwitchTime: Date.now(),
 			lastUpdate: new Date().toISOString(),
@@ -234,6 +237,7 @@ export async function advanceCycle(): Promise<void> {
 	const newIndex = (state.currentCycleIndex + 1) % visibleItems.length;
 
 	const newState: DirectorState = {
+		...state,
 		currentCycleIndex: newIndex,
 		lastSwitchTime: Date.now(),
 		lastUpdate: new Date().toISOString(),
@@ -245,8 +249,10 @@ export async function advanceCycle(): Promise<void> {
 }
 
 export async function resetCycle(): Promise<void> {
+	const state = await getState();
 	const activePlaylist = await resolveActivePlaylist();
 	const newState: DirectorState = {
+		...state,
 		currentCycleIndex: 0,
 		lastSwitchTime: Date.now(),
 		lastUpdate: new Date().toISOString(),
@@ -347,6 +353,7 @@ export async function tick(): Promise<DirectorStatus> {
 	if (state.activePlaylistId !== activePlaylist.id || state.currentCycleIndex >= visibleItems.length) {
 		if (DEBUG) console.log("[Director Tick] Playlist changed, resetting");
 		state = {
+			...state,
 			currentCycleIndex: 0,
 			lastSwitchTime: now,
 			lastUpdate: new Date().toISOString(),
@@ -363,6 +370,7 @@ export async function tick(): Promise<DirectorStatus> {
 	if (now >= itemEndTime) {
 		const newIndex = (state.currentCycleIndex + 1) % visibleItems.length;
 		const newState: DirectorState = {
+			...state,
 			currentCycleIndex: newIndex,
 			lastSwitchTime: now,
 			lastUpdate: new Date().toISOString(),
