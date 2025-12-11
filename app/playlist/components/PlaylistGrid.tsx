@@ -3,11 +3,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sun, CalendarDays, Type, GripVertical, SlidersHorizontal, X, Cloud, Eye, EyeOff, Square } from "lucide-react";
+import { Sun, CalendarDays, Type, GripVertical, SlidersHorizontal, X, Cloud, Eye, EyeOff, Square, Image } from "lucide-react";
 import type { PlaylistItem } from "@/lib/playlist";
 
 // --- TYPES ---
-type ScreenType = "weather" | "calendar" | "custom-text" | "logo";
+type ScreenType = "weather" | "calendar" | "custom-text" | "logo" | "image";
 
 interface PlaylistGridProps {
 	playlist: PlaylistItem[];
@@ -30,6 +30,8 @@ const renderScreenIcon = (type: ScreenType, colorClass: string) => {
 			return <Type className={`w-6 h-6 ${colorClass} stroke-1`} />;
 		case "logo":
 			return <Square className={`w-6 h-6 ${colorClass} stroke-1`} />;
+		case "image":
+			return <Image className={`w-6 h-6 ${colorClass} stroke-1`} />;
 		default:
 			return <Sun className={`w-6 h-6 ${colorClass} stroke-1`} />;
 	}
@@ -84,6 +86,17 @@ const renderPreview = (item: PlaylistItem, groupHoverClass: string) => {
 				<p className={`text-[6px] font-bold leading-tight text-center break-words line-clamp-3 ${textClass}`}>
 					{config?.text || "Hello World"}
 				</p>
+			</div>
+		);
+	}
+
+	if (type === "image") {
+		return (
+			<div className="flex flex-col items-center justify-center w-full h-full gap-1 p-1">
+				<Image className={`w-4 h-4 ${groupHoverClass}`} />
+				<span className={`text-[6px] uppercase font-mono tracking-wider ${textClass} opacity-60`}>
+					{config?.fit === "cover" ? "Fill" : "Fit"}
+				</span>
 			</div>
 		);
 	}

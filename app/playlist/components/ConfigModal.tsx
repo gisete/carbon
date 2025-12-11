@@ -16,7 +16,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 	const [config, setConfig] = useState<Record<string, any>>({});
 	const [duration, setDuration] = useState<number>(15);
 	const [title, setTitle] = useState<string>("");
-	const [bitDepth, setBitDepth] = useState<number>(1);
+	const [bitDepth, setBitDepth] = useState<1 | 2>(1);
 
 	// Initialize config when item changes
 	useEffect(() => {
@@ -323,7 +323,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 						</label>
 						<select
 							value={bitDepth}
-							onChange={(e) => setBitDepth(parseInt(e.target.value))}
+							onChange={(e) => setBitDepth(parseInt(e.target.value) as 1 | 2)}
 							className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal focus:outline-none focus:border-bright-blue focus:bg-white transition-colors"
 						>
 							<option value={1}>High Contrast (1-bit)</option>
