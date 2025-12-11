@@ -4,8 +4,17 @@ import sharp from "sharp";
 import { getCurrentItem, advanceCycle, updateBatteryLevel, getDirectorState } from "@/lib/director";
 import { getPlaylistCollection } from "@/lib/playlist"; // <--- Added this import
 import type { PlaylistItem } from "@/lib/playlist";
+import { getSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
+
+// --- PALETTE CONSTANTS ---
+const PALETTE_2BIT = Buffer.from([
+	0, 0, 0,           // Black
+	85, 85, 85,        // Dark Gray
+	170, 170, 170,     // Light Gray
+	255, 255, 255      // White
+]);
 
 // --- GLOBAL CACHE ---
 let imageCache: Buffer | null = null;
@@ -54,13 +63,17 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 			}
 		}
 
+		// Get global bit depth setting
+		const settings = await getSettings();
+		let bitDepth = settings.system.bitDepth;
+
 		let targetUrl: string;
+		let foundItem: PlaylistItem | undefined;
 
 		// --- FIX STARTS HERE ---
 		if (screenParam) {
 			// 1. Try to find an item with this ID
 			const collection = await getPlaylistCollection();
-			let foundItem: PlaylistItem | undefined;
 
 			for (const playlist of collection.playlists) {
 				foundItem = playlist.items.find((i) => i.id === screenParam);
@@ -70,6 +83,12 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 			if (foundItem) {
 				console.log(`[Render] Found item by ID: ${foundItem.title} (${foundItem.type})`);
 				targetUrl = buildScreenUrl(foundItem);
+
+				// Check for item-specific bit depth override
+				if (foundItem.config?.bitDepth) {
+					bitDepth = foundItem.config.bitDepth;
+					console.log(`[Render] Using item-specific bitDepth: ${bitDepth}`);
+				}
 			} else {
 				// 2. Fallback: If no ID found, assume it's a direct path (legacy support for ?screen=weather)
 				console.log(`[Render] ID not found, trying as direct path: ${screenParam}`);
@@ -85,6 +104,13 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 			} else {
 				console.log(`[Render] Generating active item: ${currentItem.title}`);
 				targetUrl = buildScreenUrl(currentItem);
+				foundItem = currentItem;
+
+				// Check for item-specific bit depth override
+				if (currentItem.config?.bitDepth) {
+					bitDepth = currentItem.config.bitDepth;
+					console.log(`[Render] Using item-specific bitDepth: ${bitDepth}`);
+				}
 			}
 		}
 		// --- FIX ENDS HERE ---
@@ -109,18 +135,31 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 		const screenshotBuffer = await page.screenshot({ type: "png" });
 		await browser.close();
 
-		imageCache = await sharp(screenshotBuffer)
+		// Apply bit depth processing
+		let sharpPipeline = sharp(screenshotBuffer)
 			.resize(800, 480, {
 				fit: "contain",
 				background: { r: 255, g: 255, b: 255 },
 			})
-			.grayscale()
-			.png({
-				palette: true,
-				colors: 16,
-				dither: 0,
-			})
-			.toBuffer();
+			.grayscale();
+
+		if (bitDepth === 2) {
+			// 2-bit: Use palette with 4 colors and dithering
+			console.log("[Render] Using 2-bit mode with 4-color palette");
+			imageCache = await sharpPipeline
+				.png({
+					palette: true,
+					colors: 4,
+					dither: 1.0,
+				})
+				.toBuffer();
+		} else {
+			// 1-bit: Use threshold for pure black and white
+			console.log("[Render] Using 1-bit mode with threshold");
+			imageCache = await sharpPipeline
+				.threshold(128)
+				.toBuffer();
+		}
 
 		lastGeneratedTime = Date.now();
 		console.log("[Render] Generation complete.");

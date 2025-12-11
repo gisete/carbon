@@ -34,7 +34,7 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 		<div className="w-[800px] h-[480px] bg-white flex border-2 border-eink-light-gray font-sans">
 			{/* LEFT PANEL - Current Weather (35%) */}
 			{/* Background is dark-gray, Text is white for best contrast */}
-			<div className="w-[35%] bg-dark-gray border-r-2 border-eink-light-gray p-6 flex flex-col justify-between">
+			<div className="w-[35%] bg-eink-dark-gray border-r-2 border-eink-light-gray p-6 flex flex-col justify-between">
 				{/* Date Header */}
 				<div className="text-center">
 					<h1 className="text-base font-bold text-white leading-tight">{getCurrentDate()}</h1>
@@ -117,7 +117,7 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 
 									{/* Visual Bar - Uses mid-gray on white background */}
 									<div className="w-20 h-1.5 bg-eink-light-gray rounded-full relative overflow-hidden">
-										<div className="absolute inset-y-0 left-0 bg-mid-gray rounded-full" style={{ width: "70%" }} />
+										<div className="absolute inset-y-0 left-0 bg-eink-dark-gray rounded-full" style={{ width: "70%" }} />
 									</div>
 
 									{/* Max Temp */}

@@ -1,10 +1,9 @@
 export default function DitherTestScreen() {
 	const colorBlocks = [
-		{ name: "BLACK", bgClass: "bg-black", textClass: "text-white" },
-		{ name: "DARK GRAY", bgClass: "bg-dark-gray", textClass: "text-white" },
-		{ name: "MID GRAY", bgClass: "bg-mid-gray", textClass: "text-black" },
+		{ name: "BLACK", bgClass: "bg-eink-black", textClass: "text-white" },
+		{ name: "DARK GRAY", bgClass: "bg-eink-dark-gray", textClass: "text-white" },
 		{ name: "LIGHT GRAY", bgClass: "bg-eink-light-gray", textClass: "text-black" },
-		{ name: "WHITE", bgClass: "bg-white", textClass: "text-black" },
+		{ name: "WHITE", bgClass: "bg-eink-white", textClass: "text-black" },
 	];
 
 	return (

@@ -75,7 +75,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 	return (
 		<div className="w-[800px] h-[480px] bg-white text-black font-sans flex flex-col select-none">
 			{/* ===== HEADER SECTION ===== */}
-			<div className="h-[60px] px-8 flex items-center justify-between bg-dark-gray">
+			<div className="h-[60px] px-8 flex items-center justify-between bg-eink-dark-gray">
 				<div className="flex items-center gap-3">
 					<h1 className="text-3xl font-bold text-white">This Week</h1>
 					<Calendar className="w-7 h-7 text-white" strokeWidth={2} />
@@ -138,7 +138,7 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 											<div
 												key={eventIdx}
 												className={`px-2 py-2 ${
-													eventIdx < visibleEvents.length - 1 ? "border-b-[3px] border-mid-gray" : ""
+													eventIdx < visibleEvents.length - 1 ? "border-b-[3px] border-eink-dark-gray" : ""
 												}`}
 											>
 												{/* Event title with time */}

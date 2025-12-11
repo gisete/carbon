@@ -70,7 +70,7 @@ export default function CurrentView({ data }: CurrentViewProps) {
 							<Thermometer className="w-6 h-6 stroke-[2.5]" />
 							<span className="text-3xl font-black tracking-tight">{Math.round(Number(data.current.feelsLike))}°</span>
 						</div>
-						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-mid-gray">Feels Like</div>
+						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-eink-dark-gray">Feels Like</div>
 					</div>
 
 					{/* Humidity (Dynamic!) */}
@@ -79,7 +79,7 @@ export default function CurrentView({ data }: CurrentViewProps) {
 							<Droplets className="w-6 h-6 fill-black stroke-black" />
 							<span className="text-3xl font-black tracking-tight">{Math.round(Number(data.current.humidity))}%</span>
 						</div>
-						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-mid-gray">Humidity</div>
+						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-eink-dark-gray">Humidity</div>
 					</div>
 
 					{/* Wind */}
@@ -90,7 +90,7 @@ export default function CurrentView({ data }: CurrentViewProps) {
 								{data.current.windDir} {data.current.windSpeed}
 							</span>
 						</div>
-						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-mid-gray">Current Wind</div>
+						<div className="text-xs font-bold uppercase tracking-[0.15em] pl-9 text-eink-dark-gray">Current Wind</div>
 					</div>
 				</div>
 			</div>

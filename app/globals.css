@@ -11,11 +11,11 @@
 	--color-pure-white: #ffffff;
 	--color-light-gray: #e7e5e4;
 
-	/* E-Ink Specific Colors (Final Calibration) */
-	--color-black: #000000;
-	--color-dark-gray: #737373;      /* 45% - Best Dark Texture */
-	--color-mid-gray: #999999;       /* 60% - Best Mid Texture */
-	--color-eink-light-gray: #d9d9d9; /* 85% - Best Light Texture */
+	/* E-Ink Specific Colors (TRMNL 2-bit Grayscale Palette) */
+	--color-eink-black: #000000;
+	--color-eink-dark-gray: #555555;
+	--color-eink-light-gray: #AAAAAA;
+	--color-eink-white: #FFFFFF;
 
 	/* Spacing */
 	--spacing-xs: 0.125rem;

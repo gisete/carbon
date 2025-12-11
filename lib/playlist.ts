@@ -8,7 +8,7 @@ export interface PlaylistItem {
   type: 'weather' | 'calendar' | 'custom-text' | 'logo';
   title: string;
   subtitle: string;
-  config: Record<string, any>; // For plugin settings
+  config: Record<string, any> & { bitDepth?: 1 | 2 }; // For plugin settings
   lastUpdated: string;
   duration?: number; // Duration in minutes (how long this screen displays)
   visible?: boolean; // Whether this item is visible/displayed (default: true)

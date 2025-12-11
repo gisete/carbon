@@ -37,7 +37,7 @@ export default function DailyView({ events }: DailyViewProps) {
 				<h1 className="text-5xl font-bold mb-2">Today's Schedule</h1>
 
 				{/* Date Subtitle */}
-				<p className="text-2xl text-mid-gray">{dateStr}</p>
+				<p className="text-2xl text-eink-dark-gray">{dateStr}</p>
 
 				{/* Divider */}
 				<div className="border-b-2 border-eink-light-gray mt-5"></div>
@@ -48,7 +48,7 @@ export default function DailyView({ events }: DailyViewProps) {
 				{events.length === 0 ? (
 					// No events message
 					<div className="flex items-start pt-6">
-						<p className="text-3xl text-mid-gray">No events scheduled for today</p>
+						<p className="text-3xl text-eink-dark-gray">No events scheduled for today</p>
 					</div>
 				) : (
 					// Events list
@@ -57,7 +57,7 @@ export default function DailyView({ events }: DailyViewProps) {
 							<div key={idx} className="flex gap-6">
 								{/* ===== TIME COLUMN ===== */}
 								<div className="w-[140px] flex-shrink-0">
-									<span className="text-2xl font-bold text-dark-gray">
+									<span className="text-2xl font-bold text-eink-dark-gray">
 										{event.allDay ? "All Day" : formatTime(event.start)}
 									</span>
 								</div>
@@ -71,14 +71,14 @@ export default function DailyView({ events }: DailyViewProps) {
 
 									{/* Event Description (if available and fits) */}
 									{event.description && (
-										<p className="text-xl text-mid-gray line-clamp-2 mt-2">
+										<p className="text-xl text-eink-dark-gray line-clamp-2 mt-2">
 											{event.description}
 										</p>
 									)}
 
 									{/* Event Location (if available and no description) */}
 									{event.location && !event.description && (
-										<p className="text-lg text-mid-gray italic mt-1">
+										<p className="text-lg text-eink-dark-gray italic mt-1">
 											📍 {event.location}
 										</p>
 									)}
@@ -88,7 +88,7 @@ export default function DailyView({ events }: DailyViewProps) {
 
 						{/* More events indicator */}
 						{events.length > maxEventsToShow && (
-							<p className="text-xl text-mid-gray italic pl-[164px]">
+							<p className="text-xl text-eink-dark-gray italic pl-[164px]">
 								+{events.length - maxEventsToShow} more event{events.length - maxEventsToShow !== 1 ? "s" : ""}...
 							</p>
 						)}
@@ -98,11 +98,11 @@ export default function DailyView({ events }: DailyViewProps) {
 
 			{/* ===== FOOTER ===== */}
 			<div className="flex justify-between items-center px-10 pb-6 pt-4">
-				<span className="text-lg text-mid-gray">
+				<span className="text-lg text-eink-dark-gray">
 					Updated: {formatTime(new Date())}
 				</span>
 				{events.length > 0 && (
-					<span className="text-lg text-mid-gray">
+					<span className="text-lg text-eink-dark-gray">
 						{events.length} event{events.length !== 1 ? "s" : ""} today
 					</span>
 				)}

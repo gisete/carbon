@@ -17,6 +17,7 @@ export interface Settings {
 		refreshInterval: number; // Global default cycle time (minutes)
 		startTime: string;        // "00:00" - when playlist starts
 		endTime: string;          // "23:45" - when playlist ends
+		bitDepth: 1 | 2;
 	};
 }
 
@@ -41,6 +42,7 @@ const DEFAULT_SETTINGS: Settings = {
 		refreshInterval: 5,      // Default: 5 minutes per item
 		startTime: "00:00",      // Playlist active all day by default
 		endTime: "23:45",
+		bitDepth: 1,
 	},
 };
 

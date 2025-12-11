@@ -59,7 +59,7 @@ export default function MonthlyView({ events }: MonthlyViewProps) {
 			<div className="h-[50px] flex items-center pb-2">
 				<h1 className="text-3xl">
 					<span className="font-bold">{monthName}</span>{" "}
-					<span className="font-normal text-mid-gray">{yearStr}</span>
+					<span className="font-normal text-eink-dark-gray">{yearStr}</span>
 				</h1>
 			</div>
 
@@ -69,7 +69,7 @@ export default function MonthlyView({ events }: MonthlyViewProps) {
 					const dayAbbr = format(day, "EEE");
 					return (
 						<div key={index} className="flex items-center justify-center">
-							<span className="text-xs font-bold text-mid-gray uppercase">{dayAbbr}</span>
+							<span className="text-xs font-bold text-eink-dark-gray uppercase">{dayAbbr}</span>
 						</div>
 					);
 				})}
@@ -103,7 +103,7 @@ export default function MonthlyView({ events }: MonthlyViewProps) {
 										) : (
 											<span
 												className={`text-sm mb-1 font-semibold ${
-													isCurrentMonth ? "text-black" : "text-mid-gray"
+													isCurrentMonth ? "text-black" : "text-eink-dark-gray"
 												}`}
 											>
 												{dayNum}
@@ -123,7 +123,7 @@ export default function MonthlyView({ events }: MonthlyViewProps) {
 													</div>
 												))}
 												{dayEvents.length > 3 && (
-													<span className="text-[8px] text-mid-gray">+{dayEvents.length - 3} more</span>
+													<span className="text-[8px] text-eink-dark-gray">+{dayEvents.length - 3} more</span>
 												)}
 											</div>
 										)}

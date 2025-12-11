@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { tick, updateBatteryLevel } from "@/lib/director";
+import { tick, updateBatteryLevel, advanceCycle } from "@/lib/director";
 import { getSettings } from "@/lib/settings";
 import { calculateSyncedSleep, isNightMode } from "@/lib/sleep";
 
@@ -27,13 +27,26 @@ export async function GET(req: NextRequest) {
 
 	try {
 		// 1. Get current playlist status from Director
-		const status = await tick();
+		const initialStatus = await tick();
 
-		// 2. Get system settings for start/end times
+		// 2. Check for early wake-up (user button press)
+		const timeRemaining = initialStatus.nextSwitchTime - Date.now();
+		let status;
+
+		if (timeRemaining > 60000) {
+			// More than 60 seconds early -> user pressed button
+			console.log(`[Display API] Early wake detected (${Math.round(timeRemaining / 1000)}s early) -> Advancing Cycle`);
+			await advanceCycle();
+			status = await tick(); // Re-fetch to get the new next screen
+		} else {
+			status = initialStatus;
+		}
+
+		// 3. Get system settings for start/end times
 		const settings = await getSettings();
 		const { startTime, endTime } = settings.system;
 
-		// 3. Calculate smart sleep duration
+		// 4. Calculate smart sleep duration
 		const isNight = isNightMode(startTime, endTime);
 		const sleepSeconds = calculateSyncedSleep(status.nextSwitchTime, batteryLevel, isNight, startTime);
 
