@@ -54,11 +54,11 @@ export default function MonthlyView({ events }: MonthlyViewProps) {
 	const weekDays = monthDays.slice(0, 7);
 
 	return (
-		<div className="w-[800px] h-[480px] bg-white text-black font-sans flex flex-col select-none p-4">
+		<div className="w-[800px] h-[480px] bg-white text-black font-eink-sans flex flex-col select-none p-4">
 			{/* ===== HEADER SECTION ===== */}
 			<div className="h-[50px] flex items-center pb-2">
 				<h1 className="text-3xl">
-					<span className="font-bold">{monthName}</span>{" "}
+					<span className="font-bold font-eink-serif">{monthName}</span>{" "}
 					<span className="font-normal text-eink-dark-gray">{yearStr}</span>
 				</h1>
 			</div>

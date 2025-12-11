@@ -10,7 +10,7 @@ export default async function CustomTextScreen({ searchParams }: CustomTextScree
 	const text = params.text || "Hello World";
 
 	return (
-		<div className="w-[800px] h-[480px] bg-white text-black flex items-center justify-center p-8">
+		<div className="w-[800px] h-[480px] bg-white text-black flex items-center justify-center p-8 font-eink-sans">
 			<div className="text-center">
 				<p className="text-6xl font-bold leading-tight break-words">
 					{text}

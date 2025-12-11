@@ -29,6 +29,8 @@
 	--font-sans: var(--font-sans);
 	--font-serif: var(--font-serif);
 	--font-mono: var(--font-mono);
+	--font-eink-sans: var(--font-eink-sans);
+	--font-eink-serif: var(--font-chareink);
 
 	/* Border Radius */
 	--radius-sm: 2px;

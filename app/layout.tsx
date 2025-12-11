@@ -4,7 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutTemplate, MonitorPlay, Settings } from "lucide-react";
-import { IBM_Plex_Sans, IBM_Plex_Serif, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Serif, JetBrains_Mono, Roboto } from "next/font/google";
+import localFont from "next/font/local";
 import Logo from "@/app/components/Logo";
 import PageHeader from "@/app/components/PageHeader";
 import { PluginProvider, usePlugin } from "./contexts/PluginContext";
@@ -27,6 +28,29 @@ const jetBrainsMono = JetBrains_Mono({
 	weight: ["300", "400", "500"],
 	subsets: ["latin"],
 	variable: "--font-mono",
+});
+
+// E-ink optimized fonts
+const roboto = Roboto({
+	weight: ["400", "700", "900"],
+	subsets: ["latin"],
+	variable: "--font-eink-sans",
+});
+
+const chareInk = localFont({
+	src: [
+		{
+			path: "../public/fonts/ChareInk-Regular.ttf",
+			weight: "400",
+			style: "normal",
+		},
+		{
+			path: "../public/fonts/ChareInk-Bold.ttf",
+			weight: "700",
+			style: "normal",
+		},
+	],
+	variable: "--font-chareink",
 });
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
@@ -142,7 +166,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en">
-			<body className="antialiased">
+			<body className={`antialiased ${ibmPlexSans.variable} ${ibmPlexSerif.variable} ${jetBrainsMono.variable} ${roboto.variable} ${chareInk.variable}`}>
 				<PluginProvider>
 					<LayoutContent>{children}</LayoutContent>
 				</PluginProvider>

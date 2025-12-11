@@ -7,7 +7,7 @@ export default function DitherTestScreen() {
 	];
 
 	return (
-		<div className="w-[800px] h-[480px] flex">
+		<div className="w-[800px] h-[480px] flex font-eink-sans">
 			{colorBlocks.map((block, index) => (
 				<div
 					key={index}

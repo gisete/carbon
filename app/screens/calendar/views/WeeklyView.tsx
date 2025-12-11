@@ -73,11 +73,11 @@ export default function WeeklyView({ events }: WeeklyViewProps) {
 	const maxEventsToShow = 6;
 
 	return (
-		<div className="w-[800px] h-[480px] bg-white text-black font-sans flex flex-col select-none">
+		<div className="w-[800px] h-[480px] bg-white text-black font-eink-sans flex flex-col select-none">
 			{/* ===== HEADER SECTION ===== */}
 			<div className="h-[60px] px-8 flex items-center justify-between bg-eink-dark-gray">
 				<div className="flex items-center gap-3">
-					<h1 className="text-3xl font-bold text-white">This Week</h1>
+					<h1 className="text-3xl font-bold text-white font-eink-serif">This Week</h1>
 					<Calendar className="w-7 h-7 text-white" strokeWidth={2} />
 				</div>
 				<p className="text-base text-white">Updated: {formatTime(new Date())}</p>

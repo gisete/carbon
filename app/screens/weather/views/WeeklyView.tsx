@@ -31,7 +31,7 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 	const CurrentIcon = getIpmaIcon(data.today.idWeatherType);
 
 	return (
-		<div className="w-[800px] h-[480px] bg-white flex border-2 border-eink-light-gray font-sans">
+		<div className="w-[800px] h-[480px] bg-white flex border-2 border-eink-light-gray font-eink-sans">
 			{/* LEFT PANEL - Current Weather (35%) */}
 			{/* Background is dark-gray, Text is white for best contrast */}
 			<div className="w-[35%] bg-eink-dark-gray border-r-2 border-eink-light-gray p-6 flex flex-col justify-between">

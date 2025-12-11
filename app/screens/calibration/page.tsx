@@ -29,7 +29,7 @@ export default function CalibrationScreen() {
 			</div>
 
 			{/* Text Preview Row - Large white text on dark gray background */}
-			<div className="flex-1 bg-eink-dark-gray flex items-center justify-center px-8">
+			<div className="flex-1 bg-eink-dark-gray flex items-center justify-center px-8 font-eink-sans">
 				<p className="text-white text-5xl font-bold text-center leading-tight">
 					The quick brown fox jumps over the lazy dog
 				</p>

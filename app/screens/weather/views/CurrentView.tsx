@@ -27,12 +27,12 @@ export default function CurrentView({ data }: CurrentViewProps) {
 	});
 
 	return (
-		<div className="w-[800px] h-[480px] bg-white text-black font-sans relative flex flex-col overflow-hidden select-none">
+		<div className="w-[800px] h-[480px] bg-white text-black font-eink-sans relative flex flex-col overflow-hidden select-none">
 			{/* --- Header --- */}
 			<header className="h-[60px] flex justify-between items-center px-6 border-b-2 border-eink-light-gray shrink-0">
 				<div className="flex items-center gap-3">
 					<MapPin className="w-5 h-5 stroke-black stroke-2" />
-					<h1 className="text-xl font-medium uppercase tracking-wider">{data.location}</h1>
+					<h1 className="text-xl font-medium uppercase tracking-wider font-eink-serif">{data.location}</h1>
 				</div>
 				<div className="text-xl font-black tracking-tight">{headerDate}</div>
 			</header>

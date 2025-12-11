@@ -12,7 +12,7 @@ export default function CalibrationFineScreen() {
 	];
 
 	return (
-		<div className="w-[800px] h-[480px] bg-white flex">
+		<div className="w-[800px] h-[480px] bg-white flex font-eink-sans">
 			{grayShades.map((shade, index) => (
 				<div
 					key={index}

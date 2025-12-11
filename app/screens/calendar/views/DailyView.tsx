@@ -30,11 +30,11 @@ export default function DailyView({ events }: DailyViewProps) {
 	const visibleEvents = events.slice(0, maxEventsToShow);
 
 	return (
-		<div className="w-[800px] h-[480px] bg-white text-black font-sans flex flex-col select-none">
+		<div className="w-[800px] h-[480px] bg-white text-black font-eink-sans flex flex-col select-none">
 			{/* ===== HEADER SECTION ===== */}
 			<div className="px-10 pt-10 pb-6">
 				{/* Title */}
-				<h1 className="text-5xl font-bold mb-2">Today's Schedule</h1>
+				<h1 className="text-5xl font-bold mb-2 font-eink-serif">Today's Schedule</h1>
 
 				{/* Date Subtitle */}
 				<p className="text-2xl text-eink-dark-gray">{dateStr}</p>
