@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { Plus, Cloud, CalendarDays, Type, Square } from "lucide-react";
+import { Plus, Cloud, CalendarDays, Type, Square, Image } from "lucide-react";
 import Modal from "@/app/components/Modal";
 
-type ScreenType = "weather" | "calendar" | "custom-text" | "logo";
+type ScreenType = "weather" | "calendar" | "custom-text" | "logo" | "image";
 
 interface ScreenOption {
 	type: ScreenType;
@@ -43,6 +43,12 @@ const SCREEN_OPTIONS: ScreenOption[] = [
 		title: "Carbon Logo",
 		description: "Display Carbon branding",
 		icon: Square,
+	},
+	{
+		type: "image",
+		title: "Image",
+		description: "Display a custom image",
+		icon: Image,
 	},
 ];
 

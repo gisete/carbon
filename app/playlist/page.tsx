@@ -163,6 +163,17 @@ export default function PlaylistPage() {
 					duration: 15,
 				};
 				break;
+			case "image":
+				newItem = {
+					id: generateId(),
+					type: "image",
+					title: "Image",
+					subtitle: "No image set",
+					config: { url: "", fit: "contain", grayscale: false },
+					lastUpdated: "Just now",
+					duration: 15,
+				};
+				break;
 		}
 		setIsScreenModalOpen(false);
 		setIsNewItem(true);

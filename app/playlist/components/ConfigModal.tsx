@@ -16,6 +16,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 	const [config, setConfig] = useState<Record<string, any>>({});
 	const [duration, setDuration] = useState<number>(15);
 	const [title, setTitle] = useState<string>("");
+	const [bitDepth, setBitDepth] = useState<number>(1);
 
 	// Initialize config when item changes
 	useEffect(() => {
@@ -23,6 +24,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 			setConfig(item.config || {});
 			setDuration(item.duration ?? 15);
 			setTitle(item.title || "");
+			setBitDepth(item.config?.bitDepth ?? 1);
 		}
 	}, [item]);
 
@@ -41,12 +43,18 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 			subtitle = config.text ? "Message configured" : "No message set";
 		} else if (item.type === "logo") {
 			subtitle = config.fontSize ? `Size: ${config.fontSize}px` : "Default Size";
+		} else if (item.type === "image") {
+			const fit = config.fit || "contain";
+			subtitle = config.url ? `${fit === "cover" ? "Fill Screen" : "Show Whole"}` : "No image set";
 		}
 
 		const updatedItem: PlaylistItem = {
 			...item,
 			title: title.trim() || item.title, // Use edited title or fallback to original
-			config,
+			config: {
+				...config,
+				bitDepth,
+			},
 			subtitle,
 			lastUpdated: "Just now",
 			duration,
@@ -60,6 +68,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 		setConfig(item.config || {});
 		setDuration(item.duration ?? 15);
 		setTitle(item.title || "");
+		setBitDepth(item.config?.bitDepth ?? 1);
 		onClose();
 	};
 
@@ -74,6 +83,8 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 				return "Configure Custom Message";
 			case "logo":
 				return "Configure Logo Display";
+			case "image":
+				return "Configure Image Display";
 			default:
 				return "Configure Plugin Settings";
 		}
@@ -228,6 +239,105 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 						<p className="mt-2 text-xs text-warm-gray">Adjust the size of the Carbon logo (40-200px)</p>
 					</div>
 				)}
+
+				{/* IMAGE CONFIG */}
+				{item.type === "image" && (
+					<>
+						<div>
+							<label className="block font-mono text-[10px] tracking-[1.5px] uppercase text-warm-gray mb-3">
+								Image Source
+							</label>
+							<input
+								type="text"
+								value={config.url || ""}
+								onChange={(e) => setConfig({ ...config, url: e.target.value })}
+								placeholder="https://... or /images/file.jpg"
+								className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal placeholder-warm-gray focus:outline-none focus:border-bright-blue focus:bg-white transition-colors font-mono text-sm"
+							/>
+							<p className="mt-2 text-xs text-warm-gray">
+								Enter a remote URL (https://...) or local path (/images/file.jpg)
+							</p>
+						</div>
+
+						<div>
+							<label className="block font-mono text-[10px] tracking-[1.5px] uppercase text-warm-gray mb-3">
+								Scaling Mode
+							</label>
+							<div className="space-y-2">
+								<label className="flex items-center gap-3 cursor-pointer">
+									<input
+										type="radio"
+										name="fit"
+										value="contain"
+										checked={config.fit === "contain" || !config.fit}
+										onChange={(e) => setConfig({ ...config, fit: e.target.value as "contain" })}
+										className="w-4 h-4"
+									/>
+									<div>
+										<div className="text-sm font-medium text-charcoal">Show Whole Image</div>
+										<div className="text-xs text-warm-gray">Image scaled to fit within 800x480px (letterboxing if needed)</div>
+									</div>
+								</label>
+								<label className="flex items-center gap-3 cursor-pointer">
+									<input
+										type="radio"
+										name="fit"
+										value="cover"
+										checked={config.fit === "cover"}
+										onChange={(e) => setConfig({ ...config, fit: e.target.value as "cover" })}
+										className="w-4 h-4"
+									/>
+									<div>
+										<div className="text-sm font-medium text-charcoal">Fill Screen</div>
+										<div className="text-xs text-warm-gray">Image scaled to cover entire screen (may crop edges)</div>
+									</div>
+								</label>
+							</div>
+						</div>
+
+						<div>
+							<label className="flex items-center gap-3 cursor-pointer">
+								<input
+									type="checkbox"
+									checked={config.grayscale || false}
+									onChange={(e) => setConfig({ ...config, grayscale: e.target.checked })}
+									className="w-4 h-4"
+								/>
+								<div>
+									<div className="text-sm font-medium text-charcoal">Simulate Grayscale</div>
+									<div className="text-xs text-warm-gray">Preview how the image will look in grayscale (visual reference only)</div>
+								</div>
+							</label>
+						</div>
+					</>
+				)}
+
+				{/* RENDER SETTINGS (Common to all plugins) */}
+				<div className="pt-8 border-t border-light-gray">
+					<h3 className="font-mono text-[10px] tracking-[1.5px] uppercase text-charcoal mb-6">
+						Render Settings
+					</h3>
+					<div>
+						<label className="block font-mono text-[10px] tracking-[1.5px] uppercase text-warm-gray mb-3">
+							Color Mode
+						</label>
+						<select
+							value={bitDepth}
+							onChange={(e) => setBitDepth(parseInt(e.target.value))}
+							className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal focus:outline-none focus:border-bright-blue focus:bg-white transition-colors"
+						>
+							<option value={1}>High Contrast (1-bit)</option>
+							<option value={2}>Grayscale (2-bit)</option>
+						</select>
+						<div className="mt-2 text-xs text-warm-gray">
+							{bitDepth === 1 ? (
+								<p>Best for text, calendars, and line art. Pure black and white rendering.</p>
+							) : (
+								<p>Best for photos and weather icons. 4-color grayscale with dithering.</p>
+							)}
+						</div>
+					</div>
+				</div>
 
 				{/* Footer */}
 				<div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-light-gray">

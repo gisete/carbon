@@ -11,12 +11,31 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
 	const searchParams = req.nextUrl.searchParams;
-	const batteryParam = searchParams.get("battery");
-	const batteryLevel = batteryParam ? parseFloat(batteryParam) : null;
 	console.log("Params:", req.nextUrl.searchParams.toString());
 	console.log("Headers:", Object.fromEntries(req.headers));
 
-	// Update battery level if provided
+	// Calculate battery percentage from TRMNL voltage header or fallback to query param
+	let batteryLevel: number | null = null;
+
+	// 1. Try TRMNL header (official firmware sends voltage)
+	const batteryVoltageHeader = req.headers.get("battery-voltage");
+	if (batteryVoltageHeader) {
+		const voltage = parseFloat(batteryVoltageHeader);
+		// TRMNL formula: percentage = (voltage - 3) / 0.012
+		const percentage = Math.round((voltage - 3) / 0.012);
+		batteryLevel = Math.max(0, Math.min(100, percentage)); // Clamp between 0-100
+		console.log(`[Display API] Battery from header: ${voltage}V -> ${batteryLevel}%`);
+	}
+	// 2. Fallback to query param (for simulator or legacy calls)
+	else {
+		const batteryParam = searchParams.get("battery");
+		if (batteryParam) {
+			batteryLevel = parseFloat(batteryParam);
+			console.log(`[Display API] Battery from query param: ${batteryLevel}%`);
+		}
+	}
+
+	// Update battery level if we got one
 	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
 		try {
 			await updateBatteryLevel(batteryLevel);

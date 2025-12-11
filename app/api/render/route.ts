@@ -34,6 +34,8 @@ function buildScreenUrl(item: PlaylistItem | null): string {
 			return `${baseUrl}/screens/custom-text?text=${encodeURIComponent(item.config?.text || "")}`;
 		case "logo":
 			return `${baseUrl}/screens/logo?fontSize=${item.config?.fontSize || "120"}`;
+		case "image":
+			return `${baseUrl}/screens/image?id=${item.id}`;
 		default:
 			return `${baseUrl}/screens/weather`;
 	}
@@ -124,6 +126,23 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 		});
 
 		const page = await browser.newPage();
+
+		// Forward console logs from the page
+		page.on('console', (msg) => {
+			const text = msg.text();
+			console.log(`[Page Console] ${text}`);
+		});
+
+		// Forward page errors
+		page.on('pageerror', (error) => {
+			console.error(`[Page Error] ${error.message}`);
+		});
+
+		// Forward request failures
+		page.on('requestfailed', (request) => {
+			console.error(`[Page Request Failed] ${request.url()}`);
+		});
+
 		await page.setViewport({ width: 800, height: 480, deviceScaleFactor: 1 });
 
 		const pageUrl = new URL(targetUrl);

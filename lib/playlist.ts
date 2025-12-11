@@ -5,10 +5,16 @@ import path from 'path';
 
 export interface PlaylistItem {
   id: string;
-  type: 'weather' | 'calendar' | 'custom-text' | 'logo';
+  type: 'weather' | 'calendar' | 'custom-text' | 'logo' | 'image';
   title: string;
   subtitle: string;
-  config: Record<string, any> & { bitDepth?: 1 | 2 }; // For plugin settings
+  config: Record<string, any> & {
+    bitDepth?: 1 | 2;
+    // Image-specific config
+    url?: string;
+    fit?: 'cover' | 'contain';
+    grayscale?: boolean;
+  }; // For plugin settings
   lastUpdated: string;
   duration?: number; // Duration in minutes (how long this screen displays)
   visible?: boolean; // Whether this item is visible/displayed (default: true)
