@@ -94,13 +94,9 @@ export async function getCalendarEvents(view: CalendarView = "daily", icalUrl?: 
 
 		// Fetch the iCal feed with Next.js caching (15 minutes)
 		const response = await fetch(calendarUrl, {
-			cache: "no-store", // <--- Forces a fresh fetch on every request
-			// next: { revalidate: 0 }, // Alternative way to say "expire immediately"
+			next: { revalidate: 900 }, // Cache for 15 minutes (900 seconds)
 			headers: {
 				Accept: "text/calendar",
-				"Cache-Control": "no-cache, no-store, must-revalidate",
-				Pragma: "no-cache",
-				Expires: "0",
 			},
 		});
 

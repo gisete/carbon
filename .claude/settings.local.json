@@ -19,7 +19,8 @@
       "Bash(npm run dev:*)",
       "Bash(node -e:*)",
       "Bash(lsof:*)",
-      "Bash(xargs kill:*)"
+      "Bash(xargs kill:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
