@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
 	const searchParams = req.nextUrl.searchParams;
 	const batteryParam = searchParams.get("battery");
 	const batteryLevel = batteryParam ? parseFloat(batteryParam) : null;
+	console.log("Params:", req.nextUrl.searchParams.toString());
+	console.log("Headers:", Object.fromEntries(req.headers));
 
 	// Update battery level if provided
 	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
