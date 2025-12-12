@@ -29,23 +29,26 @@ export default function CurrentView({ data }: CurrentViewProps) {
 	return (
 		<div className="w-[800px] h-[480px] bg-white text-black font-eink-sans relative flex flex-col overflow-hidden select-none">
 			{/* --- Header --- */}
-			<header className="h-[60px] flex justify-between items-center px-6 border-b-2 border-eink-light-gray shrink-0">
+			<header className="h-[60px] flex justify-between items-center px-6 border-b-[1px] border-eink-dark-gray shrink-0">
 				<div className="flex items-center gap-3">
 					<MapPin className="w-5 h-5 stroke-black stroke-2" />
 					<h1 className="text-xl font-medium uppercase tracking-wider font-eink-serif">{data.location}</h1>
 				</div>
-				<div className="text-xl font-black tracking-tight">{headerDate}</div>
+				<div className="text-2xl font-black">{headerDate}</div>
 			</header>
 
 			{/* --- Main Section --- */}
-			<div className="flex-1 flex flex-row">
-				{/* Col 1: Main Icon (25%) */}
-				<div className="w-[25%] flex items-center justify-center">
+			<div className="flex-1 flex flex-row items-center">
+				{/* Col 1: Main Icon (33.33%) */}
+				<div className="w-1/3 flex items-center justify-center">
 					<CurrentIcon className="w-40 h-40 stroke-black stroke-[2.5]" />
 				</div>
 
-				{/* Col 2: Big Temp & Sun Times (40%) */}
-				<div className="w-[40%] flex flex-col items-center justify-center border-x-2 border-eink-light-gray relative">
+				{/* Separator Line 1 */}
+				<div className="w-[5px] h-[70%] bg-eink-light-gray shrink-0"></div>
+
+				{/* Col 2: Big Temp & Sun Times (33.33%) */}
+				<div className="w-1/3 flex flex-col items-center justify-center relative">
 					<div className="text-[160px] leading-[0.8] font-bold tracking-tighter indent-[-10px]">
 						{Math.round(Number(data.current.temp))}°
 					</div>
@@ -62,8 +65,11 @@ export default function CurrentView({ data }: CurrentViewProps) {
 					</div>
 				</div>
 
-				{/* Col 3: Details List (35%) */}
-				<div className="w-[35%] flex flex-col justify-center px-10 gap-8">
+				{/* Separator Line 2 */}
+				<div className="w-[5px] h-[70%] bg-eink-light-gray shrink-0"></div>
+
+				{/* Col 3: Details List (33.33%) */}
+				<div className="w-1/3 flex flex-col justify-center px-10 gap-8">
 					{/* Feels Like (Using IPMA tMed as proxy) */}
 					<div>
 						<div className="flex items-center gap-3 mb-1">
@@ -96,10 +102,8 @@ export default function CurrentView({ data }: CurrentViewProps) {
 			</div>
 
 			{/* --- Hourly Forecast Section (Real Data) --- */}
-			<div className="h-[140px] border-t-2 border-eink-light-gray p-4 flex flex-col justify-between shrink-0">
-				<h3 className="text-[11px] font-bold uppercase tracking-[0.2em] mb-2 ml-2">Hourly Forecast</h3>
-
-				<div className="flex justify-between items-end px-2 pb-1">
+			<div className="h-[140px] border-t-[1px] border-eink-dark-gray py-4 px-6 flex items-center shrink-0">
+				<div className="flex justify-between items-center w-full">
 					{data.hourly.map((hour, idx) => {
 						const HourlyIcon = getIpmaIcon(hour.idWeatherType);
 
@@ -109,23 +113,14 @@ export default function CurrentView({ data }: CurrentViewProps) {
 						const DisplayIcon = isNight ? Moon : HourlyIcon;
 
 						return (
-							<div key={idx} className="flex flex-col items-center gap-2 w-full">
-								<span className="text-xs font-bold text-black">{formatHourlyLabel(hour.forecastDate, idx)}</span>
+							<div key={idx} className="flex flex-col items-center gap-3 w-full">
+								<span className="text-sm font-bold text-black">{formatHourlyLabel(hour.forecastDate, idx)}</span>
 
-								<div className="h-6 flex items-center">
-									<DisplayIcon className="w-7 h-7 stroke-[2.5]" />
+								<div className="flex items-center">
+									<DisplayIcon className="w-10 h-10 stroke-[2.5]" />
 								</div>
 
-								<div className="flex flex-col items-center h-8 justify-start">
-									<span className="text-lg font-bold leading-none">{Math.round(Number(hour.temp))}°</span>
-
-									{/* Only show rain tag if probability > 0 */}
-									{Number(hour.precipitaProb) > 0 && (
-										<span className="text-[9px] font-black mt-1 bg-black text-white px-1 rounded-sm">
-											{hour.precipitaProb}%
-										</span>
-									)}
-								</div>
+								<span className="text-2xl font-bold leading-none">{Math.round(Number(hour.temp))}°</span>
 							</div>
 						);
 					})}

@@ -45,6 +45,11 @@ export interface PlaylistCollection {
 const DATA_DIR = path.join(process.cwd(), 'data');
 const PLAYLIST_FILE = path.join(DATA_DIR, 'playlist.json');
 
+// --- LOCKING MECHANISM ---
+
+let isSaving = false;
+let saveQueue: Array<{ collection: PlaylistCollection; resolve: () => void; reject: (error: any) => void }> = [];
+
 // --- HELPER: ENSURE DATA DIRECTORY EXISTS ---
 
 async function ensureDataDir() {
@@ -220,6 +225,7 @@ export async function getPlaylistCollection(): Promise<PlaylistCollection> {
       // Check if this is the old format (array) or new format (object with playlists)
       if (Array.isArray(parsed)) {
         // Old format - migrate to new structure
+        console.log('[playlist] Migrating old format to new collection structure');
         const collection = createDefaultCollection(parsed as PlaylistItem[]);
         // Auto-save the migrated structure
         await savePlaylistCollection(collection);
@@ -228,17 +234,29 @@ export async function getPlaylistCollection(): Promise<PlaylistCollection> {
 
       // New format - ensure all playlists have isDefault field (migration)
       const collection = parsed as PlaylistCollection;
+      let needsSave = false;
+
       collection.playlists.forEach(p => {
         if (p.isDefault === undefined) {
           p.isDefault = false; // Default to false, will be corrected by ensureSingleDefault
+          needsSave = true;
         }
       });
+
+      // Check if we need to fix default playlist
+      const defaults = collection.playlists.filter(p => p.isDefault);
+      if (defaults.length !== 1 && collection.playlists.length > 0) {
+        needsSave = true;
+      }
 
       // Ensure exactly one default exists
       ensureSingleDefault(collection);
 
-      // Auto-save if migration occurred
-      await savePlaylistCollection(collection);
+      // Only save if migration was needed
+      if (needsSave) {
+        console.log('[playlist] Migration needed, saving collection');
+        await savePlaylistCollection(collection);
+      }
 
       return collection;
     } catch (error: any) {
@@ -264,45 +282,75 @@ export async function getPlaylistCollection(): Promise<PlaylistCollection> {
 }
 
 /**
- * Saves the playlist collection to the JSON file using atomic write.
- * Creates the data directory if it doesn't exist.
- * Uses a temporary file to prevent race conditions during write.
+ * Internal function to actually write to disk
  */
-export async function savePlaylistCollection(collection: PlaylistCollection): Promise<void> {
+async function _savePlaylistCollectionToDisk(collection: PlaylistCollection): Promise<void> {
   await ensureDataDir();
 
-  // Use atomic write: write to temp file, then copy+delete
-  const tempFile = PLAYLIST_FILE + '.tmp';
+  // Write directly to the file (no temp file needed with our queue system)
   const jsonData = JSON.stringify(collection, null, 2);
 
   try {
-    await fs.writeFile(tempFile, jsonData, 'utf-8');
-
-    // Use copyFile instead of rename for better cross-platform compatibility
-    // This works even if the destination exists
-    await fs.copyFile(tempFile, PLAYLIST_FILE);
-
-    // Clean up temp file after successful copy
-    try {
-      await fs.unlink(tempFile);
-    } catch (unlinkError: any) {
-      // Ignore ENOENT errors (file already deleted due to race condition)
-      if (unlinkError.code !== 'ENOENT') {
-        console.warn('[Playlist] Failed to cleanup temp file:', unlinkError);
-      }
-    }
-
+    await fs.writeFile(PLAYLIST_FILE, jsonData, 'utf-8');
     console.log('[Playlist] Successfully saved playlist collection');
   } catch (error) {
-    // Clean up temp file if it exists
-    try {
-      await fs.unlink(tempFile);
-    } catch {
-      // Ignore cleanup errors
-    }
     console.error('[Playlist] Failed to save playlist collection:', error);
     throw error;
   }
+}
+
+/**
+ * Saves the playlist collection to the JSON file using a queue to prevent race conditions.
+ * Creates the data directory if it doesn't exist.
+ */
+export async function savePlaylistCollection(collection: PlaylistCollection): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Add to queue
+    saveQueue.push({ collection, resolve, reject });
+
+    // Process queue if not already processing
+    if (!isSaving) {
+      processSaveQueue();
+    }
+  });
+}
+
+/**
+ * Process the save queue sequentially
+ */
+async function processSaveQueue(): Promise<void> {
+  if (isSaving || saveQueue.length === 0) {
+    return;
+  }
+
+  isSaving = true;
+
+  while (saveQueue.length > 0) {
+    // Get the latest save request (discard older ones for the same collection)
+    const request = saveQueue.shift()!;
+
+    try {
+      await _savePlaylistCollectionToDisk(request.collection);
+      request.resolve();
+
+      // Also resolve any other pending requests in the queue
+      // (they're redundant since we just saved the latest state)
+      while (saveQueue.length > 0) {
+        const redundantRequest = saveQueue.shift()!;
+        redundantRequest.resolve();
+      }
+    } catch (error) {
+      request.reject(error);
+
+      // Also reject all pending requests
+      while (saveQueue.length > 0) {
+        const failedRequest = saveQueue.shift()!;
+        failedRequest.reject(error);
+      }
+    }
+  }
+
+  isSaving = false;
 }
 
 /**

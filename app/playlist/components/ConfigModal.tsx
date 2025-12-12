@@ -17,6 +17,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 	const [duration, setDuration] = useState<number>(15);
 	const [title, setTitle] = useState<string>("");
 	const [bitDepth, setBitDepth] = useState<1 | 2>(1);
+	const [dither, setDither] = useState<boolean>(true);
 
 	// Initialize config when item changes
 	useEffect(() => {
@@ -25,6 +26,15 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 			setDuration(item.duration ?? 15);
 			setTitle(item.title || "");
 			setBitDepth(item.config?.bitDepth ?? 1);
+
+			// Set default dither based on item type
+			if (item.config?.dither !== undefined) {
+				setDither(item.config.dither);
+			} else {
+				// Default: false for logo/text/calendar (clean), true for weather/image (textured)
+				const cleanTypes = ["logo", "custom-text", "calendar"];
+				setDither(!cleanTypes.includes(item.type));
+			}
 		}
 	}, [item]);
 
@@ -54,6 +64,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 			config: {
 				...config,
 				bitDepth,
+				dither,
 			},
 			subtitle,
 			lastUpdated: "Just now",
@@ -69,6 +80,15 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 		setDuration(item.duration ?? 15);
 		setTitle(item.title || "");
 		setBitDepth(item.config?.bitDepth ?? 1);
+
+		// Reset dither to default
+		if (item.config?.dither !== undefined) {
+			setDither(item.config.dither);
+		} else {
+			const cleanTypes = ["logo", "custom-text", "calendar"];
+			setDither(!cleanTypes.includes(item.type));
+		}
+
 		onClose();
 	};
 
@@ -317,24 +337,47 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 					<h3 className="font-mono text-[10px] tracking-[1.5px] uppercase text-charcoal mb-6">
 						Render Settings
 					</h3>
-					<div>
-						<label className="block font-mono text-[10px] tracking-[1.5px] uppercase text-warm-gray mb-3">
-							Color Mode
-						</label>
-						<select
-							value={bitDepth}
-							onChange={(e) => setBitDepth(parseInt(e.target.value) as 1 | 2)}
-							className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal focus:outline-none focus:border-bright-blue focus:bg-white transition-colors"
-						>
-							<option value={1}>High Contrast (1-bit)</option>
-							<option value={2}>Grayscale (2-bit)</option>
-						</select>
-						<div className="mt-2 text-xs text-warm-gray">
-							{bitDepth === 1 ? (
-								<p>Best for text, calendars, and line art. Pure black and white rendering.</p>
-							) : (
-								<p>Best for photos and weather icons. 4-color grayscale with dithering.</p>
-							)}
+					<div className="space-y-6">
+						<div>
+							<label className="block font-mono text-[10px] tracking-[1.5px] uppercase text-warm-gray mb-3">
+								Color Mode
+							</label>
+							<select
+								value={bitDepth}
+								onChange={(e) => setBitDepth(parseInt(e.target.value) as 1 | 2)}
+								className="w-full px-4 py-3 border border-light-gray bg-off-white text-charcoal focus:outline-none focus:border-bright-blue focus:bg-white transition-colors"
+							>
+								<option value={1}>High Contrast (1-bit)</option>
+								<option value={2}>Grayscale (2-bit)</option>
+							</select>
+							<div className="mt-2 text-xs text-warm-gray">
+								{bitDepth === 1 ? (
+									<p>Best for text, calendars, and line art. Pure black and white rendering.</p>
+								) : (
+									<p>Best for photos and weather icons. 4-color grayscale with dithering.</p>
+								)}
+							</div>
+						</div>
+
+						<div>
+							<label className="flex items-center gap-3 cursor-pointer">
+								<input
+									type="checkbox"
+									checked={dither}
+									onChange={(e) => setDither(e.target.checked)}
+									className="w-4 h-4"
+								/>
+								<div>
+									<div className="text-sm font-medium text-charcoal">Enable Dithering</div>
+									<div className="text-xs text-warm-gray">
+										{dither ? (
+											<p>Adds texture/patterns to simulate shades (recommended for photos)</p>
+										) : (
+											<p>Solid colors only, no patterns (recommended for logos and text)</p>
+										)}
+									</div>
+								</div>
+							</label>
 						</div>
 					</div>
 				</div>

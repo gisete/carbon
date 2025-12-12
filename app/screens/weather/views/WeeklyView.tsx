@@ -35,9 +35,9 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 			{/* LEFT PANEL - Current Weather (35%) */}
 			{/* Background is dark-gray, Text is white for best contrast */}
 			<div className="w-[35%] bg-eink-dark-gray border-r-2 border-eink-light-gray p-6 flex flex-col justify-between">
-				{/* Date Header */}
+				{/* Location Header */}
 				<div className="text-center">
-					<h1 className="text-base font-bold text-white leading-tight">{getCurrentDate()}</h1>
+					<h1 className="text-base font-bold text-white leading-tight uppercase">{data.location}</h1>
 				</div>
 
 				{/* Current Temperature & Icon (Center) */}
@@ -76,59 +76,49 @@ export default function WeeklyView({ data }: WeeklyViewProps) {
 			</div>
 
 			{/* RIGHT PANEL - 7-Day Forecast (65%) */}
-			<div className="w-[65%] bg-white flex flex-col">
-				{/* Header */}
-				<div className="border-b-2 border-eink-light-gray px-6 py-2 flex justify-end items-center">
-					<p className="text-sm font-bold text-black">{data.location}</p>
-				</div>
+			<div className="w-[65%] bg-white flex flex-col justify-between">
+				{data.daily.slice(1, 8).map((day, index) => {
+					const IconComponent = getIpmaIcon(day.idWeatherType);
+					const precipProb = parseInt(day.precipitaProb);
 
-				{/* Forecast List */}
-				<div className="flex-1">
-					{data.daily.slice(1, 8).map((day, index) => {
-						const IconComponent = getIpmaIcon(day.idWeatherType);
-						const precipProb = parseInt(day.precipitaProb);
-
-						return (
-							<div key={index} className="border-b border-eink-light-gray px-6 py-4 flex items-center gap-5">
-								{/* Day & Date */}
-								<div className="w-24 flex items-baseline gap-2 tabular-nums">
-									<span className="text-base font-bold text-black">{getDayName(day.forecastDate)}</span>
-									<span className="text-sm text-black">{getDateNum(day.forecastDate)}</span>
-								</div>
-
-								{/* Weather Icon */}
-								<div className="flex-shrink-0">
-									<IconComponent className="w-7 h-7 text-black" strokeWidth={2} />
-								</div>
-
-								{/* Precipitation (Only if > 0) */}
-								<div className="w-14 text-center">
-									{precipProb > 0 && (
-										<span className="text-sm font-bold text-black tabular-nums">{day.precipitaProb}%</span>
-									)}
-								</div>
-
-								{/* Temperature Range */}
-								<div className="flex items-center gap-3 flex-1 justify-end">
-									{/* Min Temp */}
-									<span className="text-base text-black tabular-nums w-10 text-right">
-										{Math.round(parseFloat(day.tMin))}°
-									</span>
-
-									{/* Visual Bar - Uses mid-gray on white background */}
-									<div className="w-20 h-1.5 bg-eink-light-gray rounded-full relative overflow-hidden">
-										<div className="absolute inset-y-0 left-0 bg-eink-dark-gray rounded-full" style={{ width: "70%" }} />
-									</div>
-
-									{/* Max Temp */}
-									<span className="text-base font-bold text-black tabular-nums w-10">
-										{Math.round(parseFloat(day.tMax))}°
-									</span>
-								</div>
+					return (
+						<div key={index} className="border-b border-eink-light-gray px-6 flex items-center gap-5 flex-1">
+							{/* Day & Date */}
+							<div className="w-24 flex items-baseline gap-2 tabular-nums">
+								<span className="text-lg font-bold text-black">{getDayName(day.forecastDate)}</span>
+								<span className="text-base text-black">{getDateNum(day.forecastDate)}</span>
 							</div>
-						);
-					})}
-				</div>
+
+							{/* Weather Icon */}
+							<div className="flex-shrink-0">
+								<IconComponent className="w-9 h-9 text-black" strokeWidth={2.5} />
+							</div>
+
+							{/* Precipitation (Only if > 0) */}
+							<div className="w-14 text-center">
+								{precipProb > 0 && (
+									<span className="text-sm font-bold text-black tabular-nums">{day.precipitaProb}%</span>
+								)}
+							</div>
+
+							{/* Temperature Range */}
+							<div className="flex items-center gap-3 flex-1 justify-end">
+								{/* Max Temp */}
+								<span className="text-xl font-bold text-black tabular-nums w-12 text-right">
+									{Math.round(parseFloat(day.tMax))}°
+								</span>
+
+								{/* Separator Line */}
+								<div className="w-6 h-[3px] bg-eink-dark-gray"></div>
+
+								{/* Min Temp */}
+								<span className="text-xl text-black tabular-nums w-12">
+									{Math.round(parseFloat(day.tMin))}°
+								</span>
+							</div>
+						</div>
+					);
+				})}
 			</div>
 		</div>
 	);

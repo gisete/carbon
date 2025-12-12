@@ -51,7 +51,7 @@ function buildScreenUrl(item: PlaylistItem | null): string {
 /**
  * GENERATOR
  */
-async function generateImage(batteryParam: number | null, screenParam: string | null, humidityParam: string | null, invertParam: boolean) {
+async function generateImage(batteryParam: number | null, screenParam: string | null, humidityParam: string | null, invertParam: boolean, ditherParam: boolean) {
 	if (isGenerating) {
 		console.log("[Render] Already generating, waiting...");
 		while (isGenerating) {
@@ -178,26 +178,47 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 		sharpPipeline = sharpPipeline.grayscale();
 
 		if (bitDepth === 2) {
-			// 2-bit: Use strict 4-color palette mapping with dithering
-			console.log("[Render] Using 2-bit mode with TRMNL 4-color palette");
-			imageCache = await sharpPipeline
-				.png({
-					palette: true,
-					colors: 4,
-					dither: 1.0,
-				})
-				.toBuffer();
+			// 2-bit: Use strict 4-color palette mapping
+			if (ditherParam) {
+				console.log("[Render] Using 2-bit mode with TRMNL 4-color palette + dithering");
+				imageCache = await sharpPipeline
+					.png({
+						palette: true,
+						colors: 4,
+						dither: 1.0,
+					})
+					.toBuffer();
+			} else {
+				console.log("[Render] Using 2-bit mode with TRMNL 4-color palette (solid, no dither)");
+				imageCache = await sharpPipeline
+					.png({
+						palette: true,
+						colors: 4,
+						dither: 0,
+					})
+					.toBuffer();
+			}
 		} else {
-			// 1-bit: Use dithering for 2-color black/white output
-			// This creates patterns (like checkerboard) to represent mid-tones
-			console.log("[Render] Using 1-bit mode with Floyd-Steinberg dithering");
-			imageCache = await sharpPipeline
-				.png({
-					palette: true,
-					colors: 2,
-					dither: 1.0,
-				})
-				.toBuffer();
+			// 1-bit: Black and white output
+			if (ditherParam) {
+				// Use dithering for 2-color black/white output
+				// This creates patterns (like checkerboard) to represent mid-tones
+				console.log("[Render] Using 1-bit mode with Floyd-Steinberg dithering");
+				imageCache = await sharpPipeline
+					.png({
+						palette: true,
+						colors: 2,
+						dither: 1.0,
+					})
+					.toBuffer();
+			} else {
+				// Pure threshold (no dithering) - crisp black/white
+				console.log("[Render] Using 1-bit mode with threshold (no dither)");
+				imageCache = await sharpPipeline
+					.threshold(128)
+					.png()
+					.toBuffer();
+			}
 		}
 
 		lastGeneratedTime = Date.now();
@@ -215,6 +236,7 @@ export async function GET(req: NextRequest) {
 	const screenParam = searchParams.get("screen");
 	const humidityParam = searchParams.get("humidity");
 	const invertParam = searchParams.get("invert") === "true";
+	const ditherParam = searchParams.get("dither") !== "false"; // Default to true
 
 	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
 		updateBatteryLevel(batteryLevel).catch((err) => {
@@ -223,7 +245,7 @@ export async function GET(req: NextRequest) {
 	}
 
 	console.log("[Render] Device requesting image...");
-	await generateImage(batteryLevel, screenParam, humidityParam, invertParam);
+	await generateImage(batteryLevel, screenParam, humidityParam, invertParam, ditherParam);
 
 	if (!imageCache) {
 		return NextResponse.json({ error: "Generation failed" }, { status: 500 });

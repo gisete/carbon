@@ -73,7 +73,9 @@ export async function GET(req: NextRequest) {
 		const baseUrl = process.env.BASE_URL || "http://localhost:3000";
 		const timestamp = Date.now();
 		const screenId = status.currentItem?.id || "default";
-		const imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}&invert=true`;
+		const config = status.currentItem?.config || {};
+		const dither = config.dither !== undefined ? config.dither : true;
+		const imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}&invert=true&dither=${dither}`;
 
 		// 5. Build TRMNL response
 		const response = {
