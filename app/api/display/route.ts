@@ -72,10 +72,10 @@ export async function GET(req: NextRequest) {
 		// 4. Construct absolute image URL
 		const baseUrl = process.env.BASE_URL || "http://localhost:3000";
 		const timestamp = Date.now();
-		const screenId = status.currentItem?.id || "default";
+		const screenId = status.currentItem?.id || "logo";
 		const config = status.currentItem?.config || {};
 		const dither = config.dither !== undefined ? config.dither : true;
-		const imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}&invert=true&dither=${dither}`;
+		const imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}&dither=${dither}`;
 
 		// 5. Build TRMNL response
 		const response = {
