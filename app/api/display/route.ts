@@ -75,7 +75,11 @@ export async function GET(req: NextRequest) {
 		const screenId = status.currentItem?.id || "logo";
 		const config = status.currentItem?.config || {};
 		const dither = config.dither !== undefined ? config.dither : true;
-		const imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}&dither=${dither}`;
+		const invert = config.invert === true;
+		let imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}&dither=${dither}`;
+		if (invert) {
+			imageUrl += "&invert=true";
+		}
 
 		// 5. Build TRMNL response
 		const response = {

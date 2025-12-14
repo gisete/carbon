@@ -178,26 +178,151 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 		sharpPipeline = sharpPipeline.grayscale();
 
 		if (bitDepth === 2) {
-			// 2-bit: Use strict 4-color palette mapping
+			// 2-bit: Use strict 4-color palette mapping with PALETTE_2BIT
+			console.log(`[Render] Using 2-bit mode with TRMNL 4-color palette${ditherParam ? ' + dithering' : ' (solid, no dither)'}`);
+
+			// Get raw grayscale pixel data
+			const { data, info } = await sharpPipeline.raw().toBuffer({ resolveWithObject: true });
+			const width = info.width;
+			const height = info.height;
+
+			// Create indexed image buffer (1 byte per pixel = palette index)
+			const indexedData = Buffer.alloc(width * height);
+
 			if (ditherParam) {
-				console.log("[Render] Using 2-bit mode with TRMNL 4-color palette + dithering");
-				imageCache = await sharpPipeline
-					.png({
-						palette: true,
-						colors: 4,
-						dither: 1.0,
-					})
-					.toBuffer();
+				// Floyd-Steinberg dithering for 2-bit
+				// Create a copy of data as we'll be modifying error values
+				const workingData = Buffer.from(data);
+
+				for (let y = 0; y < height; y++) {
+					for (let x = 0; x < width; x++) {
+						const idx = y * width + x;
+						const oldPixel = workingData[idx];
+
+						// Map to nearest palette color
+						let paletteIndex: number;
+						if (oldPixel < 64) {
+							paletteIndex = 0; // Black
+						} else if (oldPixel < 128) {
+							paletteIndex = 1; // Dark Gray
+						} else if (oldPixel < 192) {
+							paletteIndex = 2; // Light Gray
+						} else {
+							paletteIndex = 3; // White
+						}
+
+						const newPixel = paletteIndex * 85; // 0, 85, 170, 255
+						indexedData[idx] = paletteIndex;
+
+						// Calculate quantization error
+						const error = oldPixel - newPixel;
+
+						// Distribute error to neighboring pixels (Floyd-Steinberg)
+						if (x + 1 < width) {
+							workingData[idx + 1] = Math.max(0, Math.min(255, workingData[idx + 1] + error * 7 / 16));
+						}
+						if (y + 1 < height) {
+							if (x > 0) {
+								workingData[idx + width - 1] = Math.max(0, Math.min(255, workingData[idx + width - 1] + error * 3 / 16));
+							}
+							workingData[idx + width] = Math.max(0, Math.min(255, workingData[idx + width] + error * 5 / 16));
+							if (x + 1 < width) {
+								workingData[idx + width + 1] = Math.max(0, Math.min(255, workingData[idx + width + 1] + error * 1 / 16));
+							}
+						}
+					}
+				}
 			} else {
-				console.log("[Render] Using 2-bit mode with TRMNL 4-color palette (solid, no dither)");
-				imageCache = await sharpPipeline
-					.png({
-						palette: true,
-						colors: 4,
-						dither: 0,
-					})
-					.toBuffer();
+				// No dithering - simple threshold mapping
+				for (let i = 0; i < data.length; i++) {
+					const pixel = data[i];
+					// Map grayscale value to palette index
+					// 0-63 -> 0 (Black), 64-127 -> 1 (Dark), 128-191 -> 2 (Light), 192-255 -> 3 (White)
+					if (pixel < 64) {
+						indexedData[i] = 0;
+					} else if (pixel < 128) {
+						indexedData[i] = 1;
+					} else if (pixel < 192) {
+						indexedData[i] = 2;
+					} else {
+						indexedData[i] = 3;
+					}
+				}
 			}
+
+			// Create PNG with explicit PALETTE_2BIT
+			// Manually construct the PNG with proper PLTE chunk to enforce our palette order
+			const zlib = await import('zlib');
+
+			// Pack 2-bit indices into bytes (4 pixels per byte)
+			const packedRows: Buffer[] = [];
+			for (let y = 0; y < height; y++) {
+				const row = Buffer.alloc(1 + Math.ceil(width / 4));
+				row[0] = 0; // filter type: none
+
+				for (let x = 0; x < width; x++) {
+					const pixelIdx = y * width + x;
+					const byteIdx = 1 + Math.floor(x / 4);
+					const bitShift = 6 - (x % 4) * 2;
+					row[byteIdx] |= (indexedData[pixelIdx] & 0x03) << bitShift;
+				}
+				packedRows.push(row);
+			}
+
+			const packedData = Buffer.concat(packedRows);
+			const compressedData = zlib.deflateSync(packedData);
+
+			// Construct PNG manually with proper chunks
+			const chunks: Buffer[] = [];
+
+			// PNG signature
+			chunks.push(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+
+			// Helper to create chunk
+			const createChunk = (type: string, data: Buffer): Buffer => {
+				const length = Buffer.alloc(4);
+				length.writeUInt32BE(data.length, 0);
+
+				const typeBuffer = Buffer.from(type, 'ascii');
+				const dataWithType = Buffer.concat([typeBuffer, data]);
+
+				// Calculate CRC32
+				let crc = 0xFFFFFFFF;
+				for (let i = 0; i < dataWithType.length; i++) {
+					crc = crc ^ dataWithType[i];
+					for (let j = 0; j < 8; j++) {
+						crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+					}
+				}
+				crc = crc ^ 0xFFFFFFFF;
+
+				const crcBuffer = Buffer.alloc(4);
+				crcBuffer.writeUInt32BE(crc >>> 0, 0);
+
+				return Buffer.concat([length, typeBuffer, data, crcBuffer]);
+			};
+
+			// IHDR chunk
+			const ihdr = Buffer.alloc(13);
+			ihdr.writeUInt32BE(width, 0);
+			ihdr.writeUInt32BE(height, 4);
+			ihdr.writeUInt8(2, 8);  // bit depth
+			ihdr.writeUInt8(3, 9);  // color type (indexed)
+			ihdr.writeUInt8(0, 10); // compression
+			ihdr.writeUInt8(0, 11); // filter
+			ihdr.writeUInt8(0, 12); // interlace
+			chunks.push(createChunk('IHDR', ihdr));
+
+			// PLTE chunk (our fixed palette)
+			chunks.push(createChunk('PLTE', PALETTE_2BIT));
+
+			// IDAT chunk
+			chunks.push(createChunk('IDAT', compressedData));
+
+			// IEND chunk
+			chunks.push(createChunk('IEND', Buffer.alloc(0)));
+
+			imageCache = Buffer.concat(chunks);
 		} else {
 			// 1-bit: Black and white output
 			if (ditherParam) {
