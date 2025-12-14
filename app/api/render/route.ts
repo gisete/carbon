@@ -212,11 +212,14 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 					})
 					.toBuffer();
 			} else {
-				// Pure threshold (no dithering) - crisp black/white
-				console.log("[Render] Using 1-bit mode with threshold (no dither)");
+				// Pure black/white (no dithering) - crisp output
+				console.log("[Render] Using 1-bit mode (solid, no dither)");
 				imageCache = await sharpPipeline
-					.threshold(128)
-					.png()
+					.png({
+						palette: true,
+						colors: 2,
+						dither: 0,
+					})
 					.toBuffer();
 			}
 		}
