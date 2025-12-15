@@ -7,8 +7,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
+    console.log("Params:", req.nextUrl.searchParams.toString());
 
-    // Battery Logic
+    // Battery
     let batteryLevel: number | null = null;
     const batteryVoltageHeader = req.headers.get("battery-voltage");
     if (batteryVoltageHeader) {
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        // Director Logic
+        // Director
         const initialStatus = await tick();
         const timeRemaining = initialStatus.nextSwitchTime - Date.now();
         let status;
@@ -50,6 +51,7 @@ export async function GET(req: NextRequest) {
         const dither = config.dither !== undefined ? config.dither : true;
         const invert = config.invert === true;
 
+        // Pass "invert" parameter to render
         let imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}&dither=${dither}`;
         if (invert) imageUrl += "&invert=true";
 
