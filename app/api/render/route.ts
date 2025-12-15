@@ -162,6 +162,30 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 		const screenshotBuffer = await page.screenshot({ type: "png" });
 		await browser.close();
 
+		// Helper function to create PNG chunks (used by both 1-bit and 2-bit)
+		const createChunk = (type: string, data: Buffer): Buffer => {
+			const length = Buffer.alloc(4);
+			length.writeUInt32BE(data.length, 0);
+
+			const typeBuffer = Buffer.from(type, 'ascii');
+			const dataWithType = Buffer.concat([typeBuffer, data]);
+
+			// Calculate CRC32
+			let crc = 0xFFFFFFFF;
+			for (let i = 0; i < dataWithType.length; i++) {
+				crc = crc ^ dataWithType[i];
+				for (let j = 0; j < 8; j++) {
+					crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+				}
+			}
+			crc = crc ^ 0xFFFFFFFF;
+
+			const crcBuffer = Buffer.alloc(4);
+			crcBuffer.writeUInt32BE(crc >>> 0, 0);
+
+			return Buffer.concat([length, typeBuffer, data, crcBuffer]);
+		};
+
 		// Apply bit depth processing
 		let sharpPipeline = sharp(screenshotBuffer)
 			.resize(800, 480, {
@@ -278,30 +302,6 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 			// PNG signature
 			chunks.push(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
 
-			// Helper to create chunk
-			const createChunk = (type: string, data: Buffer): Buffer => {
-				const length = Buffer.alloc(4);
-				length.writeUInt32BE(data.length, 0);
-
-				const typeBuffer = Buffer.from(type, 'ascii');
-				const dataWithType = Buffer.concat([typeBuffer, data]);
-
-				// Calculate CRC32
-				let crc = 0xFFFFFFFF;
-				for (let i = 0; i < dataWithType.length; i++) {
-					crc = crc ^ dataWithType[i];
-					for (let j = 0; j < 8; j++) {
-						crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
-					}
-				}
-				crc = crc ^ 0xFFFFFFFF;
-
-				const crcBuffer = Buffer.alloc(4);
-				crcBuffer.writeUInt32BE(crc >>> 0, 0);
-
-				return Buffer.concat([length, typeBuffer, data, crcBuffer]);
-			};
-
 			// IHDR chunk
 			const ihdr = Buffer.alloc(13);
 			ihdr.writeUInt32BE(width, 0);
@@ -324,29 +324,107 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
 
 			imageCache = Buffer.concat(chunks);
 		} else {
-			// 1-bit: Black and white output
+			// 1-bit: Black and white output with strict palette enforcement
+			console.log(`[Render] Using 1-bit mode with TRMNL 2-color palette${ditherParam ? ' + dithering' : ' (solid, no dither)'}`);
+
+			// Get raw grayscale pixel data
+			const { data, info } = await sharpPipeline.raw().toBuffer({ resolveWithObject: true });
+			const width = info.width;
+			const height = info.height;
+
+			// Create indexed image buffer (1 byte per pixel = palette index)
+			const indexedData = Buffer.alloc(width * height);
+
 			if (ditherParam) {
-				// Use dithering for 2-color black/white output
-				// This creates patterns (like checkerboard) to represent mid-tones
-				console.log("[Render] Using 1-bit mode with Floyd-Steinberg dithering");
-				imageCache = await sharpPipeline
-					.png({
-						palette: true,
-						colors: 2,
-						dither: 1.0,
-					})
-					.toBuffer();
+				// Floyd-Steinberg dithering for 1-bit
+				const workingData = Buffer.from(data);
+
+				for (let y = 0; y < height; y++) {
+					for (let x = 0; x < width; x++) {
+						const idx = y * width + x;
+						const oldPixel = workingData[idx];
+
+						// Map to nearest palette color (0 = Black, 1 = White)
+						const paletteIndex = oldPixel < 128 ? 0 : 1;
+						const newPixel = paletteIndex * 255; // 0 or 255
+						indexedData[idx] = paletteIndex;
+
+						// Calculate quantization error
+						const error = oldPixel - newPixel;
+
+						// Distribute error to neighboring pixels (Floyd-Steinberg)
+						if (x + 1 < width) {
+							workingData[idx + 1] = Math.max(0, Math.min(255, workingData[idx + 1] + error * 7 / 16));
+						}
+						if (y + 1 < height) {
+							if (x > 0) {
+								workingData[idx + width - 1] = Math.max(0, Math.min(255, workingData[idx + width - 1] + error * 3 / 16));
+							}
+							workingData[idx + width] = Math.max(0, Math.min(255, workingData[idx + width] + error * 5 / 16));
+							if (x + 1 < width) {
+								workingData[idx + width + 1] = Math.max(0, Math.min(255, workingData[idx + width + 1] + error * 1 / 16));
+							}
+						}
+					}
+				}
 			} else {
-				// Pure black/white (no dithering) - crisp output
-				console.log("[Render] Using 1-bit mode (solid, no dither)");
-				imageCache = await sharpPipeline
-					.png({
-						palette: true,
-						colors: 2,
-						dither: 0,
-					})
-					.toBuffer();
+				// No dithering - simple threshold mapping
+				for (let i = 0; i < data.length; i++) {
+					const pixel = data[i];
+					// Map grayscale value to palette index
+					// 0-127 -> 0 (Black), 128-255 -> 1 (White)
+					indexedData[i] = pixel < 128 ? 0 : 1;
+				}
 			}
+
+			// Create PNG with explicit PALETTE_1BIT
+			const zlib = await import('zlib');
+
+			// Pack 1-bit indices into bytes (8 pixels per byte)
+			const packedRows: Buffer[] = [];
+			for (let y = 0; y < height; y++) {
+				const row = Buffer.alloc(1 + Math.ceil(width / 8));
+				row[0] = 0; // filter type: none
+
+				for (let x = 0; x < width; x++) {
+					const pixelIdx = y * width + x;
+					const byteIdx = 1 + Math.floor(x / 8);
+					const bitShift = 7 - (x % 8);
+					row[byteIdx] |= (indexedData[pixelIdx] & 0x01) << bitShift;
+				}
+				packedRows.push(row);
+			}
+
+			const packedData = Buffer.concat(packedRows);
+			const compressedData = zlib.deflateSync(packedData);
+
+			// Construct PNG manually with proper chunks
+			const chunks: Buffer[] = [];
+
+			// PNG signature
+			chunks.push(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+
+			// IHDR chunk
+			const ihdr = Buffer.alloc(13);
+			ihdr.writeUInt32BE(width, 0);
+			ihdr.writeUInt32BE(height, 4);
+			ihdr.writeUInt8(1, 8);  // bit depth (1-bit)
+			ihdr.writeUInt8(3, 9);  // color type (indexed)
+			ihdr.writeUInt8(0, 10); // compression
+			ihdr.writeUInt8(0, 11); // filter
+			ihdr.writeUInt8(0, 12); // interlace
+			chunks.push(createChunk('IHDR', ihdr));
+
+			// PLTE chunk (our fixed palette: Black, White)
+			chunks.push(createChunk('PLTE', PALETTE_1BIT));
+
+			// IDAT chunk
+			chunks.push(createChunk('IDAT', compressedData));
+
+			// IEND chunk
+			chunks.push(createChunk('IEND', Buffer.alloc(0)));
+
+			imageCache = Buffer.concat(chunks);
 		}
 
 		lastGeneratedTime = Date.now();
