@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
 		const response = {
 			status: 0, // 0 = success
 			image_url: imageUrl,
-			filename: `carbon-${timestamp}`,
+			filename: `carbon-${timestamp}.bmp`,
 			refresh_rate: sleepSeconds,
 			reset_firmware: false,
 			update_firmware: false,

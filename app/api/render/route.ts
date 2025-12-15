@@ -1,467 +1,285 @@
 import { NextRequest, NextResponse } from "next/server";
 import puppeteer from "puppeteer";
 import sharp from "sharp";
-import { getCurrentItem, advanceCycle, updateBatteryLevel, getDirectorState } from "@/lib/director";
-import { getPlaylistCollection } from "@/lib/playlist"; // <--- Added this import
+import { getCurrentItem, getDirectorState, updateBatteryLevel } from "@/lib/director";
+import { getPlaylistCollection } from "@/lib/playlist";
 import type { PlaylistItem } from "@/lib/playlist";
 import { getSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
-// --- PALETTE CONSTANTS ---
-// 1-Bit Palette: Pure Black and White
-const PALETTE_1BIT = Buffer.from([
-	0, 0, 0,           // Black (#000000)
-	255, 255, 255      // White (#FFFFFF)
-]);
+// --- CONSTANTS ---
+const WIDTH = 800;
+const HEIGHT = 480;
 
-// 2-Bit Palette: TRMNL-compatible 4-shade grayscale
-const PALETTE_2BIT = Buffer.from([
-	0, 0, 0,           // Black (#000000)
-	85, 85, 85,        // Dark Gray (#555555 - ~33% Gray)
-	170, 170, 170,     // Light Gray (#AAAAAA - ~66% Gray)
-	255, 255, 255      // White (#FFFFFF)
-]);
+// TRMNL 2-bit Palette (0=Black, 1=Dark, 2=Light, 3=White)
+const PALETTE_2BIT = [0x00, 0x55, 0xAA, 0xFF];
 
-// --- GLOBAL CACHE ---
+// --- CACHE ---
 let imageCache: Buffer | null = null;
-let lastGeneratedTime = 0;
 let isGenerating = false;
 
-function buildScreenUrl(item: PlaylistItem | null): string {
-	const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-	if (!item) return `${baseUrl}/screens/weather?view=current`;
+// --- HELPERS ---
 
-	switch (item.type) {
-		case "weather":
-			return `${baseUrl}/screens/weather?view=${item.config?.viewMode || "current"}`;
-		case "calendar":
-			return `${baseUrl}/screens/calendar?view=${item.config?.viewMode || "daily"}`;
-		case "custom-text":
-			return `${baseUrl}/screens/custom-text?text=${encodeURIComponent(item.config?.text || "")}`;
-		case "logo":
-			return `${baseUrl}/screens/logo?fontSize=${item.config?.fontSize || "120"}`;
-		case "image":
-			return `${baseUrl}/screens/image?id=${item.id}`;
-		default:
-			return `${baseUrl}/screens/weather`;
-	}
+function buildScreenUrl(item: PlaylistItem | null): string {
+    const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+    if (!item) return `${baseUrl}/screens/weather?view=current`;
+
+    switch (item.type) {
+        case "weather": return `${baseUrl}/screens/weather?view=${item.config?.viewMode || "current"}`;
+        case "calendar": return `${baseUrl}/screens/calendar?view=${item.config?.viewMode || "daily"}`;
+        case "custom-text": return `${baseUrl}/screens/custom-text?text=${encodeURIComponent(item.config?.text || "")}`;
+        case "logo": return `${baseUrl}/screens/logo?fontSize=${item.config?.fontSize || "120"}`;
+        case "image": return `${baseUrl}/screens/image?id=${item.id}`;
+        default: return `${baseUrl}/screens/weather`;
+    }
 }
 
 /**
- * GENERATOR
+ * Creates a Windows V3 BMP Buffer from raw pixel data.
+ * Handles 1-bit and 2-bit depths.
  */
+function createBmp(data: Buffer, width: number, height: number, bitDepth: number): Buffer {
+    // BMP Header Sizes
+    const fileHeaderSize = 14;
+    const infoHeaderSize = 40;
+    const paletteSize = (1 << bitDepth) * 4; // 2 colors (8 bytes) or 4 colors (16 bytes)
+    const stride = Math.ceil((width * bitDepth) / 32) * 4; // Row size in bytes (must be multiple of 4)
+    const pixelDataSize = stride * height;
+    const fileSize = fileHeaderSize + infoHeaderSize + paletteSize + pixelDataSize;
+
+    const buffer = Buffer.alloc(fileSize);
+    let offset = 0;
+
+    // --- 1. BITMAPFILEHEADER ---
+    buffer.write("BM", offset);           // Signature
+    offset += 2;
+    buffer.writeUInt32LE(fileSize, offset); // FileSize
+    offset += 4;
+    buffer.writeUInt16LE(0, offset);      // Reserved1
+    offset += 2;
+    buffer.writeUInt16LE(0, offset);      // Reserved2
+    offset += 2;
+    buffer.writeUInt32LE(fileHeaderSize + infoHeaderSize + paletteSize, offset); // DataOffset
+    offset += 4;
+
+    // --- 2. BITMAPINFOHEADER ---
+    buffer.writeUInt32LE(infoHeaderSize, offset); // Size
+    offset += 4;
+    buffer.writeInt32LE(width, offset);           // Width
+    offset += 4;
+    buffer.writeInt32LE(-height, offset);         // Height (Negative = Top-Down)
+    offset += 4;
+    buffer.writeUInt16LE(1, offset);              // Planes
+    offset += 2;
+    buffer.writeUInt16LE(bitDepth, offset);       // BitCount (1 or 2)
+    offset += 2;
+    buffer.writeUInt32LE(0, offset);              // Compression (BI_RGB)
+    offset += 4;
+    buffer.writeUInt32LE(pixelDataSize, offset);  // ImageSize
+    offset += 4;
+    buffer.writeInt32LE(2835, offset);            // XPixelsPerMeter (72 DPI)
+    offset += 4;
+    buffer.writeInt32LE(2835, offset);            // YPixelsPerMeter
+    offset += 4;
+    buffer.writeUInt32LE(0, offset);              // ColorsUsed
+    offset += 4;
+    buffer.writeUInt32LE(0, offset);              // ColorsImportant
+    offset += 4;
+
+    // --- 3. COLOR PALETTE ---
+    if (bitDepth === 1) {
+        // Black
+        buffer.writeUInt8(0, offset++); buffer.writeUInt8(0, offset++); buffer.writeUInt8(0, offset++); buffer.writeUInt8(0, offset++);
+        // White
+        buffer.writeUInt8(255, offset++); buffer.writeUInt8(255, offset++); buffer.writeUInt8(255, offset++); buffer.writeUInt8(0, offset++);
+    } else {
+        // 4-Color Grayscale Palette
+        for (const c of PALETTE_2BIT) {
+            buffer.writeUInt8(c, offset++); // Blue
+            buffer.writeUInt8(c, offset++); // Green
+            buffer.writeUInt8(c, offset++); // Red
+            buffer.writeUInt8(0, offset++); // Reserved
+        }
+    }
+
+    // --- 4. PIXEL DATA ---
+    // Data is assumed to be 1 byte per pixel (grayscale 0-255)
+    // We assume input `data` is exactly width * height bytes
+
+    // We need to pack the bits
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const byteIdx = (fileHeaderSize + infoHeaderSize + paletteSize) + (y * stride) + Math.floor(x * bitDepth / 8);
+            const pixelVal = data[y * width + x];
+
+            // Get palette index
+            let colorIndex = 0;
+            if (bitDepth === 1) {
+                colorIndex = pixelVal > 127 ? 1 : 0;
+                // Pack 1-bit: MSB first
+                const bitPos = 7 - (x % 8);
+                if (colorIndex) {
+                   buffer[byteIdx] |= (1 << bitPos);
+                }
+            } else {
+                // 2-bit mapping
+                if (pixelVal < 64) colorIndex = 0;      // Black
+                else if (pixelVal < 128) colorIndex = 1; // Dark Gray
+                else if (pixelVal < 192) colorIndex = 2; // Light Gray
+                else colorIndex = 3;                     // White
+
+                // Pack 2-bit: MSB first (pixels 0,1,2,3 in a byte)
+                const shift = 6 - ((x % 4) * 2);
+                buffer[byteIdx] |= (colorIndex << shift);
+            }
+        }
+    }
+
+    return buffer;
+}
+
+
 async function generateImage(batteryParam: number | null, screenParam: string | null, humidityParam: string | null, invertParam: boolean, ditherParam: boolean) {
-	if (isGenerating) {
-		console.log("[Render] Already generating, waiting...");
-		while (isGenerating) {
-			await new Promise((resolve) => setTimeout(resolve, 100));
-		}
-		return;
-	}
-
-	isGenerating = true;
-	console.log("[Render] Starting generation...");
-
-	try {
-		let batteryLevel = batteryParam;
-		if (batteryLevel === null) {
-			const state = await getDirectorState();
-			if (state.batteryLevel !== undefined) {
-				batteryLevel = state.batteryLevel;
-			}
-		}
-
-		// Get global bit depth setting
-		const settings = await getSettings();
-		let bitDepth = settings.system.bitDepth;
-
-		let targetUrl: string;
-		let foundItem: PlaylistItem | undefined;
-
-		// --- FIX STARTS HERE ---
-		if (screenParam) {
-			// 1. Try to find an item with this ID
-			const collection = await getPlaylistCollection();
-
-			for (const playlist of collection.playlists) {
-				foundItem = playlist.items.find((i) => i.id === screenParam);
-				if (foundItem) break;
-			}
-
-			if (foundItem) {
-				console.log(`[Render] Found item by ID: ${foundItem.title} (${foundItem.type})`);
-				targetUrl = buildScreenUrl(foundItem);
-
-				// Check for item-specific bit depth override
-				if (foundItem.config?.bitDepth) {
-					bitDepth = foundItem.config.bitDepth;
-					console.log(`[Render] Using item-specific bitDepth: ${bitDepth}`);
-				}
-			} else {
-				// 2. Fallback: If no ID found, assume it's a direct path (legacy support for ?screen=weather)
-				console.log(`[Render] ID not found, trying as direct path: ${screenParam}`);
-				const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-				targetUrl = `${baseUrl}/screens/${screenParam}?humidity=${humidityParam || ""}`;
-			}
-		} else {
-			// 3. No param? Ask Director what to show
-			const currentItem = await getCurrentItem();
-			if (!currentItem) {
-				console.log("[Render] No active item.");
-				targetUrl = buildScreenUrl(null);
-			} else {
-				console.log(`[Render] Generating active item: ${currentItem.title}`);
-				targetUrl = buildScreenUrl(currentItem);
-				foundItem = currentItem;
-
-				// Check for item-specific bit depth override
-				if (currentItem.config?.bitDepth) {
-					bitDepth = currentItem.config.bitDepth;
-					console.log(`[Render] Using item-specific bitDepth: ${bitDepth}`);
-				}
-			}
-		}
-		// --- FIX ENDS HERE ---
-
-		const isProduction = process.env.NODE_ENV === "production";
-		const browser = await puppeteer.launch({
-			headless: true,
-			...(isProduction && { executablePath: "/usr/bin/chromium-browser" }),
-			args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
-			ignoreDefaultArgs: ["--enable-automation"],
-		});
-
-		const page = await browser.newPage();
-
-		// Forward console logs from the page
-		page.on('console', (msg) => {
-			const text = msg.text();
-			console.log(`[Page Console] ${text}`);
-		});
-
-		// Forward page errors
-		page.on('pageerror', (error) => {
-			const message = error instanceof Error ? error.message : String(error);
-			console.error(`[Page Error] ${message}`);
-		});
-
-		// Forward request failures
-		page.on('requestfailed', (request) => {
-			console.error(`[Page Request Failed] ${request.url()}`);
-		});
-
-		await page.setViewport({ width: 800, height: 480, deviceScaleFactor: 1 });
-
-		const pageUrl = new URL(targetUrl);
-		if (batteryLevel) pageUrl.searchParams.set("battery", batteryLevel.toString());
-
-		console.log(`[Render] Visiting: ${pageUrl.toString()}`); // Debug log
-		await page.goto(pageUrl.toString(), { waitUntil: "networkidle0", timeout: 8000 });
-
-		const screenshotBuffer = await page.screenshot({ type: "png" });
-		await browser.close();
-
-		// Helper function to create PNG chunks (used by both 1-bit and 2-bit)
-		const createChunk = (type: string, data: Buffer): Buffer => {
-			const length = Buffer.alloc(4);
-			length.writeUInt32BE(data.length, 0);
-
-			const typeBuffer = Buffer.from(type, 'ascii');
-			const dataWithType = Buffer.concat([typeBuffer, data]);
-
-			// Calculate CRC32
-			let crc = 0xFFFFFFFF;
-			for (let i = 0; i < dataWithType.length; i++) {
-				crc = crc ^ dataWithType[i];
-				for (let j = 0; j < 8; j++) {
-					crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
-				}
-			}
-			crc = crc ^ 0xFFFFFFFF;
-
-			const crcBuffer = Buffer.alloc(4);
-			crcBuffer.writeUInt32BE(crc >>> 0, 0);
-
-			return Buffer.concat([length, typeBuffer, data, crcBuffer]);
-		};
-
-		// Apply bit depth processing
-		let sharpPipeline = sharp(screenshotBuffer)
-			.resize(800, 480, {
-				fit: "contain",
-				background: { r: 255, g: 255, b: 255 },
-			});
-
-		// If inverted, flip the pixels (White becomes Black)
-		if (invertParam) {
-			console.log("[Render] Inverting image for device");
-			sharpPipeline = sharpPipeline.negate();
-		}
-
-		sharpPipeline = sharpPipeline.grayscale();
-
-		if (bitDepth === 2) {
-			// 2-bit: Use strict 4-color palette mapping with PALETTE_2BIT
-			console.log(`[Render] Using 2-bit mode with TRMNL 4-color palette${ditherParam ? ' + dithering' : ' (solid, no dither)'}`);
-
-			// Get raw grayscale pixel data
-			const { data, info } = await sharpPipeline.raw().toBuffer({ resolveWithObject: true });
-			const width = info.width;
-			const height = info.height;
-
-			// Create indexed image buffer (1 byte per pixel = palette index)
-			const indexedData = Buffer.alloc(width * height);
-
-			if (ditherParam) {
-				// Floyd-Steinberg dithering for 2-bit
-				// Create a copy of data as we'll be modifying error values
-				const workingData = Buffer.from(data);
-
-				for (let y = 0; y < height; y++) {
-					for (let x = 0; x < width; x++) {
-						const idx = y * width + x;
-						const oldPixel = workingData[idx];
-
-						// Map to nearest palette color
-						let paletteIndex: number;
-						if (oldPixel < 64) {
-							paletteIndex = 0; // Black
-						} else if (oldPixel < 128) {
-							paletteIndex = 1; // Dark Gray
-						} else if (oldPixel < 192) {
-							paletteIndex = 2; // Light Gray
-						} else {
-							paletteIndex = 3; // White
-						}
-
-						const newPixel = paletteIndex * 85; // 0, 85, 170, 255
-						indexedData[idx] = paletteIndex;
-
-						// Calculate quantization error
-						const error = oldPixel - newPixel;
-
-						// Distribute error to neighboring pixels (Floyd-Steinberg)
-						if (x + 1 < width) {
-							workingData[idx + 1] = Math.max(0, Math.min(255, workingData[idx + 1] + error * 7 / 16));
-						}
-						if (y + 1 < height) {
-							if (x > 0) {
-								workingData[idx + width - 1] = Math.max(0, Math.min(255, workingData[idx + width - 1] + error * 3 / 16));
-							}
-							workingData[idx + width] = Math.max(0, Math.min(255, workingData[idx + width] + error * 5 / 16));
-							if (x + 1 < width) {
-								workingData[idx + width + 1] = Math.max(0, Math.min(255, workingData[idx + width + 1] + error * 1 / 16));
-							}
-						}
-					}
-				}
-			} else {
-				// No dithering - simple threshold mapping
-				for (let i = 0; i < data.length; i++) {
-					const pixel = data[i];
-					// Map grayscale value to palette index
-					// 0-63 -> 0 (Black), 64-127 -> 1 (Dark), 128-191 -> 2 (Light), 192-255 -> 3 (White)
-					if (pixel < 64) {
-						indexedData[i] = 0;
-					} else if (pixel < 128) {
-						indexedData[i] = 1;
-					} else if (pixel < 192) {
-						indexedData[i] = 2;
-					} else {
-						indexedData[i] = 3;
-					}
-				}
-			}
-
-			// Create PNG with explicit PALETTE_2BIT
-			// Manually construct the PNG with proper PLTE chunk to enforce our palette order
-			const zlib = await import('zlib');
-
-			// Pack 2-bit indices into bytes (4 pixels per byte)
-			const packedRows: Buffer[] = [];
-			for (let y = 0; y < height; y++) {
-				const row = Buffer.alloc(1 + Math.ceil(width / 4));
-				row[0] = 0; // filter type: none
-
-				for (let x = 0; x < width; x++) {
-					const pixelIdx = y * width + x;
-					const byteIdx = 1 + Math.floor(x / 4);
-					const bitShift = 6 - (x % 4) * 2;
-					row[byteIdx] |= (indexedData[pixelIdx] & 0x03) << bitShift;
-				}
-				packedRows.push(row);
-			}
-
-			const packedData = Buffer.concat(packedRows);
-			const compressedData = zlib.deflateSync(packedData);
-
-			// Construct PNG manually with proper chunks
-			const chunks: Buffer[] = [];
-
-			// PNG signature
-			chunks.push(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-
-			// IHDR chunk
-			const ihdr = Buffer.alloc(13);
-			ihdr.writeUInt32BE(width, 0);
-			ihdr.writeUInt32BE(height, 4);
-			ihdr.writeUInt8(2, 8);  // bit depth
-			ihdr.writeUInt8(3, 9);  // color type (indexed)
-			ihdr.writeUInt8(0, 10); // compression
-			ihdr.writeUInt8(0, 11); // filter
-			ihdr.writeUInt8(0, 12); // interlace
-			chunks.push(createChunk('IHDR', ihdr));
-
-			// PLTE chunk (our fixed palette)
-			chunks.push(createChunk('PLTE', PALETTE_2BIT));
-
-			// IDAT chunk
-			chunks.push(createChunk('IDAT', compressedData));
-
-			// IEND chunk
-			chunks.push(createChunk('IEND', Buffer.alloc(0)));
-
-			imageCache = Buffer.concat(chunks);
-		} else {
-			// 1-bit: Black and white output with strict palette enforcement
-			console.log(`[Render] Using 1-bit mode with TRMNL 2-color palette${ditherParam ? ' + dithering' : ' (solid, no dither)'}`);
-
-			// Get raw grayscale pixel data
-			const { data, info } = await sharpPipeline.raw().toBuffer({ resolveWithObject: true });
-			const width = info.width;
-			const height = info.height;
-
-			// Create indexed image buffer (1 byte per pixel = palette index)
-			const indexedData = Buffer.alloc(width * height);
-
-			if (ditherParam) {
-				// Floyd-Steinberg dithering for 1-bit
-				const workingData = Buffer.from(data);
-
-				for (let y = 0; y < height; y++) {
-					for (let x = 0; x < width; x++) {
-						const idx = y * width + x;
-						const oldPixel = workingData[idx];
-
-						// Map to nearest palette color (0 = Black, 1 = White)
-						const paletteIndex = oldPixel < 128 ? 0 : 1;
-						const newPixel = paletteIndex * 255; // 0 or 255
-						indexedData[idx] = paletteIndex;
-
-						// Calculate quantization error
-						const error = oldPixel - newPixel;
-
-						// Distribute error to neighboring pixels (Floyd-Steinberg)
-						if (x + 1 < width) {
-							workingData[idx + 1] = Math.max(0, Math.min(255, workingData[idx + 1] + error * 7 / 16));
-						}
-						if (y + 1 < height) {
-							if (x > 0) {
-								workingData[idx + width - 1] = Math.max(0, Math.min(255, workingData[idx + width - 1] + error * 3 / 16));
-							}
-							workingData[idx + width] = Math.max(0, Math.min(255, workingData[idx + width] + error * 5 / 16));
-							if (x + 1 < width) {
-								workingData[idx + width + 1] = Math.max(0, Math.min(255, workingData[idx + width + 1] + error * 1 / 16));
-							}
-						}
-					}
-				}
-			} else {
-				// No dithering - simple threshold mapping
-				for (let i = 0; i < data.length; i++) {
-					const pixel = data[i];
-					// Map grayscale value to palette index
-					// 0-127 -> 0 (Black), 128-255 -> 1 (White)
-					indexedData[i] = pixel < 128 ? 0 : 1;
-				}
-			}
-
-			// Create PNG with explicit PALETTE_1BIT
-			const zlib = await import('zlib');
-
-			// Pack 1-bit indices into bytes (8 pixels per byte)
-			const packedRows: Buffer[] = [];
-			for (let y = 0; y < height; y++) {
-				const row = Buffer.alloc(1 + Math.ceil(width / 8));
-				row[0] = 0; // filter type: none
-
-				for (let x = 0; x < width; x++) {
-					const pixelIdx = y * width + x;
-					const byteIdx = 1 + Math.floor(x / 8);
-					const bitShift = 7 - (x % 8);
-					row[byteIdx] |= (indexedData[pixelIdx] & 0x01) << bitShift;
-				}
-				packedRows.push(row);
-			}
-
-			const packedData = Buffer.concat(packedRows);
-			const compressedData = zlib.deflateSync(packedData);
-
-			// Construct PNG manually with proper chunks
-			const chunks: Buffer[] = [];
-
-			// PNG signature
-			chunks.push(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-
-			// IHDR chunk
-			const ihdr = Buffer.alloc(13);
-			ihdr.writeUInt32BE(width, 0);
-			ihdr.writeUInt32BE(height, 4);
-			ihdr.writeUInt8(1, 8);  // bit depth (1-bit)
-			ihdr.writeUInt8(3, 9);  // color type (indexed)
-			ihdr.writeUInt8(0, 10); // compression
-			ihdr.writeUInt8(0, 11); // filter
-			ihdr.writeUInt8(0, 12); // interlace
-			chunks.push(createChunk('IHDR', ihdr));
-
-			// PLTE chunk (our fixed palette: Black, White)
-			chunks.push(createChunk('PLTE', PALETTE_1BIT));
-
-			// IDAT chunk
-			chunks.push(createChunk('IDAT', compressedData));
-
-			// IEND chunk
-			chunks.push(createChunk('IEND', Buffer.alloc(0)));
-
-			imageCache = Buffer.concat(chunks);
-		}
-
-		lastGeneratedTime = Date.now();
-		console.log("[Render] Generation complete.");
-	} catch (error) {
-		console.error("[Render] Generation failed:", error);
-	} finally {
-		isGenerating = false;
-	}
+    if (isGenerating) {
+        while (isGenerating) await new Promise((r) => setTimeout(r, 100));
+        return;
+    }
+    isGenerating = true;
+    console.log("[Render] Starting generation...");
+
+    try {
+        let batteryLevel = batteryParam;
+        if (batteryLevel === null) {
+            const state = await getDirectorState();
+            batteryLevel = state.batteryLevel ?? null;
+        }
+
+        const settings = await getSettings();
+        let bitDepth = settings.system.bitDepth;
+        let targetUrl = "";
+
+        // --- RESOLVE URL ---
+        if (screenParam) {
+            const collection = await getPlaylistCollection();
+            let foundItem;
+            for (const playlist of collection.playlists) {
+                foundItem = playlist.items.find((i) => i.id === screenParam);
+                if (foundItem) break;
+            }
+            if (foundItem) {
+                targetUrl = buildScreenUrl(foundItem);
+                if (foundItem.config?.bitDepth) bitDepth = foundItem.config.bitDepth;
+            } else {
+                const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+                targetUrl = `${baseUrl}/screens/${screenParam}?humidity=${humidityParam || ""}`;
+            }
+        } else {
+            const currentItem = await getCurrentItem();
+            targetUrl = buildScreenUrl(currentItem);
+            if (currentItem?.config?.bitDepth) bitDepth = currentItem.config.bitDepth;
+        }
+
+        // --- PUPPETEER ---
+        const browser = await puppeteer.launch({
+            headless: true,
+            args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
+            executablePath: process.env.NODE_ENV === "production" ? "/usr/bin/chromium-browser" : undefined,
+        });
+        const page = await browser.newPage();
+        await page.setViewport({ width: WIDTH, height: HEIGHT });
+
+        const pageUrl = new URL(targetUrl);
+        if (batteryLevel !== null) pageUrl.searchParams.set("battery", batteryLevel.toString());
+
+        console.log(`[Render] Visiting: ${pageUrl.toString()}`);
+        await page.goto(pageUrl.toString(), { waitUntil: "networkidle0", timeout: 8000 });
+        const screenshotBuffer = await page.screenshot({ type: "png" });
+        await browser.close();
+
+        // --- IMAGE PROCESSING (SHARP) ---
+        let pipeline = sharp(screenshotBuffer)
+            .resize(WIDTH, HEIGHT, { fit: "contain", background: { r: 255, g: 255, b: 255 } })
+            .grayscale();
+
+        // Fix: Invert BEFORE mapping to palette
+        if (invertParam) {
+            console.log("[Render] Inverting image...");
+            pipeline = pipeline.negate();
+        }
+
+        // Get raw 8-bit grayscale buffer
+        const { data: rawData, info } = await pipeline.raw().toBuffer({ resolveWithObject: true });
+
+        // --- DITHERING & MAPPING ---
+        // We do this manually on the buffer to ensure exact control over the palette indices
+        const processedData = Buffer.from(rawData); // Copy
+
+        if (ditherParam) {
+            console.log(`[Render] Applying Floyd-Steinberg dithering (${bitDepth}-bit)...`);
+            for (let y = 0; y < HEIGHT; y++) {
+                for (let x = 0; x < WIDTH; x++) {
+                    const idx = y * WIDTH + x;
+                    const oldPixel = processedData[idx];
+                    let newPixel = 0;
+
+                    // Quantize
+                    if (bitDepth === 1) {
+                         newPixel = oldPixel < 128 ? 0 : 255;
+                    } else {
+                        // 2-bit quantization (0, 85, 170, 255)
+                        if (oldPixel < 42) newPixel = 0;
+                        else if (oldPixel < 128) newPixel = 85;
+                        else if (oldPixel < 212) newPixel = 170;
+                        else newPixel = 255;
+                    }
+
+                    processedData[idx] = newPixel;
+                    const error = oldPixel - newPixel;
+
+                    // Distribute error
+                    if (x + 1 < WIDTH) processedData[idx + 1] = Math.min(255, Math.max(0, processedData[idx + 1] + (error * 7) / 16));
+                    if (y + 1 < HEIGHT) {
+                        if (x > 0) processedData[idx + WIDTH - 1] = Math.min(255, Math.max(0, processedData[idx + WIDTH - 1] + (error * 3) / 16));
+                        processedData[idx + WIDTH] = Math.min(255, Math.max(0, processedData[idx + WIDTH] + (error * 5) / 16));
+                        if (x + 1 < WIDTH) processedData[idx + WIDTH + 1] = Math.min(255, Math.max(0, processedData[idx + WIDTH + 1] + (error * 1) / 16));
+                    }
+                }
+            }
+        }
+
+        // --- CREATE BMP ---
+        console.log(`[Render] Packing to ${bitDepth}-bit BMP...`);
+        imageCache = createBmp(processedData, WIDTH, HEIGHT, bitDepth);
+        console.log(`[Render] Generated ${imageCache.length} bytes.`);
+
+    } catch (error) {
+        console.error("[Render] Error:", error);
+    } finally {
+        isGenerating = false;
+    }
 }
 
 export async function GET(req: NextRequest) {
-	const searchParams = req.nextUrl.searchParams;
-	const batteryLevel = searchParams.get("battery") ? parseInt(searchParams.get("battery")!) : null;
-	const screenParam = searchParams.get("screen");
-	const humidityParam = searchParams.get("humidity");
-	const invertParam = searchParams.get("invert") === "true";
-	const ditherParam = searchParams.get("dither") !== "false"; // Default to true
+    const { searchParams } = req.nextUrl;
+    const battery = searchParams.get("battery");
+    const batteryLevel = battery ? parseInt(battery) : null;
+    const screen = searchParams.get("screen");
+    const humidity = searchParams.get("humidity");
+    const invert = searchParams.get("invert") === "true";
+    const dither = searchParams.get("dither") !== "false";
 
-	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
-		updateBatteryLevel(batteryLevel).catch((err) => {
-			console.error("[Render API] Failed to update battery level:", err);
-		});
-	}
+    if (batteryLevel !== null) updateBatteryLevel(batteryLevel).catch(console.error);
 
-	console.log("[Render] Device requesting image...");
-	await generateImage(batteryLevel, screenParam, humidityParam, invertParam, ditherParam);
+    await generateImage(batteryLevel, screen, humidity, invert, dither);
 
-	if (!imageCache) {
-		return NextResponse.json({ error: "Generation failed" }, { status: 500 });
-	}
+    if (!imageCache) return NextResponse.json({ error: "Generation failed" }, { status: 500 });
 
-	return new NextResponse(imageCache as any, {
-		headers: {
-			"Content-Type": "image/png",
-			"Content-Length": imageCache.length.toString(),
-			"Cache-Control": "no-store, max-age=0",
-		},
-	});
+    return new NextResponse(imageCache, {
+        headers: {
+            "Content-Type": "image/bmp", // Serving BMP now
+            "Content-Length": imageCache.length.toString(),
+            "Cache-Control": "no-store, max-age=0",
+        },
+    });
 }
