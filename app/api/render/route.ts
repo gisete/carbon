@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import puppeteer from "puppeteer";
 import sharp from "sharp";
+import zlib from "zlib";
 import { getCurrentItem, getDirectorState, updateBatteryLevel } from "@/lib/director";
 import { getPlaylistCollection } from "@/lib/playlist";
 import type { PlaylistItem } from "@/lib/playlist";
@@ -12,14 +13,126 @@ export const dynamic = "force-dynamic";
 const WIDTH = 800;
 const HEIGHT = 480;
 
-// TRMNL 2-bit Palette (0=Black, 1=Dark, 2=Light, 3=White)
-const PALETTE_2BIT = [0x00, 0x55, 0xAA, 0xFF];
+// CRC32 Table for PNG checksums
+const CRC_TABLE: number[] = [];
+for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+        if (c & 1) c = 0xedb88320 ^ (c >>> 1);
+        else c = c >>> 1;
+    }
+    CRC_TABLE[n] = c;
+}
 
-// --- CACHE ---
+function crc32(buf: Buffer): number {
+    let crc = 0xffffffff;
+    for (let i = 0; i < buf.length; i++) {
+        crc = CRC_TABLE[(crc ^ buf[i]) & 0xff] ^ (crc >>> 8);
+    }
+    return crc ^ 0xffffffff;
+}
+
+// --- PNG HELPERS ---
+
+function createChunk(type: string, data: Buffer): Buffer {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length, 0);
+
+    const typeBuf = Buffer.from(type, 'ascii');
+    const crcInput = Buffer.concat([typeBuf, data]);
+    const crcVal = crc32(crcInput);
+
+    const crcBuf = Buffer.alloc(4);
+    crcBuf.writeUInt32BE(crcVal >>> 0, 0); // Ensure unsigned
+
+    return Buffer.concat([len, typeBuf, data, crcBuf]);
+}
+
+/**
+ * Manually packs a 1-bit or 2-bit PNG.
+ * This is required because standard libraries often default to 8-bit palette.
+ */
+function createPng(rawData: Buffer, width: number, height: number, bitDepth: number): Buffer {
+    // 1. IHDR
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(width, 0);
+    ihdr.writeUInt32BE(height, 4);
+    ihdr.writeUInt8(bitDepth, 8); // 1 or 2
+    ihdr.writeUInt8(3, 9);        // Color Type 3 = Indexed Color
+    ihdr.writeUInt8(0, 10);       // Compression 0
+    ihdr.writeUInt8(0, 11);       // Filter 0
+    ihdr.writeUInt8(0, 12);       // Interlace 0
+
+    // 2. PLTE (Palette)
+    // TRMNL expects 0=Black ... Max=White.
+    let palette: Buffer;
+    if (bitDepth === 1) {
+        // 1-bit: Black (0), White (1)
+        palette = Buffer.from([
+            0, 0, 0,       // Index 0: Black
+            255, 255, 255  // Index 1: White
+        ]);
+    } else {
+        // 2-bit: Black, Dark Gray, Light Gray, White
+        // We use explicit values: 0x00, 0x55, 0xAA, 0xFF
+        palette = Buffer.from([
+            0, 0, 0,       // 0: Black
+            85, 85, 85,    // 1: Dark Gray
+            170, 170, 170, // 2: Light Gray
+            255, 255, 255  // 3: White
+        ]);
+    }
+
+    // 3. IDAT (Pixel Data)
+    // We must pack bits and prepend a filter byte (0) to each row.
+    const pixelsPerByte = 8 / bitDepth;
+    // Row size = 1 (filter) + ceil(width / pixelsPerByte)
+    const packedRowSize = 1 + Math.ceil(width / pixelsPerByte);
+    const packedData = Buffer.alloc(packedRowSize * height);
+
+    for (let y = 0; y < height; y++) {
+        const rowOffset = y * packedRowSize;
+        packedData[rowOffset] = 0; // Filter Type 0 (None)
+
+        for (let x = 0; x < width; x++) {
+            const pixelVal = rawData[y * width + x];
+
+            // Calculate which byte and bit-shift we are targeting
+            const byteIndex = rowOffset + 1 + Math.floor(x / pixelsPerByte);
+            const shift = 8 - bitDepth - (x % pixelsPerByte) * bitDepth;
+
+            // Map 0-255 pixel to 0-3 index
+            let index = 0;
+            if (bitDepth === 1) {
+                index = pixelVal > 127 ? 1 : 0;
+            } else {
+                if (pixelVal < 64) index = 0;
+                else if (pixelVal < 128) index = 1;
+                else if (pixelVal < 192) index = 2;
+                else index = 3;
+            }
+
+            // OR the bits into place
+            packedData[byteIndex] |= (index << shift);
+        }
+    }
+
+    const compressed = zlib.deflateSync(packedData, { level: 9 });
+
+    // Assemble Chunks
+    return Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), // Magic
+        createChunk("IHDR", ihdr),
+        createChunk("PLTE", palette),
+        createChunk("IDAT", compressed),
+        createChunk("IEND", Buffer.alloc(0))
+    ]);
+}
+
+// --- GENERATION LOGIC ---
+
 let imageCache: Buffer | null = null;
 let isGenerating = false;
-
-// --- HELPERS ---
 
 function buildScreenUrl(item: PlaylistItem | null): string {
     const baseUrl = process.env.BASE_URL || "http://localhost:3000";
@@ -34,111 +147,6 @@ function buildScreenUrl(item: PlaylistItem | null): string {
         default: return `${baseUrl}/screens/weather`;
     }
 }
-
-/**
- * Creates a Windows V3 BMP Buffer from raw pixel data.
- * Handles 1-bit and 2-bit depths.
- */
-function createBmp(data: Buffer, width: number, height: number, bitDepth: number): Buffer {
-    // BMP Header Sizes
-    const fileHeaderSize = 14;
-    const infoHeaderSize = 40;
-    const paletteSize = (1 << bitDepth) * 4; // 2 colors (8 bytes) or 4 colors (16 bytes)
-    const stride = Math.ceil((width * bitDepth) / 32) * 4; // Row size in bytes (must be multiple of 4)
-    const pixelDataSize = stride * height;
-    const fileSize = fileHeaderSize + infoHeaderSize + paletteSize + pixelDataSize;
-
-    const buffer = Buffer.alloc(fileSize);
-    let offset = 0;
-
-    // --- 1. BITMAPFILEHEADER ---
-    buffer.write("BM", offset);           // Signature
-    offset += 2;
-    buffer.writeUInt32LE(fileSize, offset); // FileSize
-    offset += 4;
-    buffer.writeUInt16LE(0, offset);      // Reserved1
-    offset += 2;
-    buffer.writeUInt16LE(0, offset);      // Reserved2
-    offset += 2;
-    buffer.writeUInt32LE(fileHeaderSize + infoHeaderSize + paletteSize, offset); // DataOffset
-    offset += 4;
-
-    // --- 2. BITMAPINFOHEADER ---
-    buffer.writeUInt32LE(infoHeaderSize, offset); // Size
-    offset += 4;
-    buffer.writeInt32LE(width, offset);           // Width
-    offset += 4;
-    buffer.writeInt32LE(-height, offset);         // Height (Negative = Top-Down)
-    offset += 4;
-    buffer.writeUInt16LE(1, offset);              // Planes
-    offset += 2;
-    buffer.writeUInt16LE(bitDepth, offset);       // BitCount (1 or 2)
-    offset += 2;
-    buffer.writeUInt32LE(0, offset);              // Compression (BI_RGB)
-    offset += 4;
-    buffer.writeUInt32LE(pixelDataSize, offset);  // ImageSize
-    offset += 4;
-    buffer.writeInt32LE(2835, offset);            // XPixelsPerMeter (72 DPI)
-    offset += 4;
-    buffer.writeInt32LE(2835, offset);            // YPixelsPerMeter
-    offset += 4;
-    buffer.writeUInt32LE(0, offset);              // ColorsUsed
-    offset += 4;
-    buffer.writeUInt32LE(0, offset);              // ColorsImportant
-    offset += 4;
-
-    // --- 3. COLOR PALETTE ---
-    if (bitDepth === 1) {
-        // Black
-        buffer.writeUInt8(0, offset++); buffer.writeUInt8(0, offset++); buffer.writeUInt8(0, offset++); buffer.writeUInt8(0, offset++);
-        // White
-        buffer.writeUInt8(255, offset++); buffer.writeUInt8(255, offset++); buffer.writeUInt8(255, offset++); buffer.writeUInt8(0, offset++);
-    } else {
-        // 4-Color Grayscale Palette
-        for (const c of PALETTE_2BIT) {
-            buffer.writeUInt8(c, offset++); // Blue
-            buffer.writeUInt8(c, offset++); // Green
-            buffer.writeUInt8(c, offset++); // Red
-            buffer.writeUInt8(0, offset++); // Reserved
-        }
-    }
-
-    // --- 4. PIXEL DATA ---
-    // Data is assumed to be 1 byte per pixel (grayscale 0-255)
-    // We assume input `data` is exactly width * height bytes
-
-    // We need to pack the bits
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const byteIdx = (fileHeaderSize + infoHeaderSize + paletteSize) + (y * stride) + Math.floor(x * bitDepth / 8);
-            const pixelVal = data[y * width + x];
-
-            // Get palette index
-            let colorIndex = 0;
-            if (bitDepth === 1) {
-                colorIndex = pixelVal > 127 ? 1 : 0;
-                // Pack 1-bit: MSB first
-                const bitPos = 7 - (x % 8);
-                if (colorIndex) {
-                   buffer[byteIdx] |= (1 << bitPos);
-                }
-            } else {
-                // 2-bit mapping
-                if (pixelVal < 64) colorIndex = 0;      // Black
-                else if (pixelVal < 128) colorIndex = 1; // Dark Gray
-                else if (pixelVal < 192) colorIndex = 2; // Light Gray
-                else colorIndex = 3;                     // White
-
-                // Pack 2-bit: MSB first (pixels 0,1,2,3 in a byte)
-                const shift = 6 - ((x % 4) * 2);
-                buffer[byteIdx] |= (colorIndex << shift);
-            }
-        }
-    }
-
-    return buffer;
-}
-
 
 async function generateImage(batteryParam: number | null, screenParam: string | null, humidityParam: string | null, invertParam: boolean, ditherParam: boolean) {
     if (isGenerating) {
@@ -159,7 +167,7 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
         let bitDepth = settings.system.bitDepth;
         let targetUrl = "";
 
-        // --- RESOLVE URL ---
+        // Resolve URL
         if (screenParam) {
             const collection = await getPlaylistCollection();
             let foundItem;
@@ -180,7 +188,7 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
             if (currentItem?.config?.bitDepth) bitDepth = currentItem.config.bitDepth;
         }
 
-        // --- PUPPETEER ---
+        // Puppeteer
         const browser = await puppeteer.launch({
             headless: true,
             args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
@@ -197,37 +205,42 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
         const screenshotBuffer = await page.screenshot({ type: "png" });
         await browser.close();
 
-        // --- IMAGE PROCESSING (SHARP) ---
-        let pipeline = sharp(screenshotBuffer)
+        // Sharp Processing
+        const pipeline = sharp(screenshotBuffer)
             .resize(WIDTH, HEIGHT, { fit: "contain", background: { r: 255, g: 255, b: 255 } })
             .grayscale();
 
-        // Fix: Invert BEFORE mapping to palette
+        // Get Raw 8-bit Data
+        const { data: rawData } = await pipeline.raw().toBuffer({ resolveWithObject: true });
+
+        // Dithering & Inversion Logic
+        // We modify the buffer in-place or copy it
+        const processedData = Buffer.from(rawData);
+
+        // Pre-calculate inversion map
+        // If Inverted: 0(Black)->White(Index Max), 255(White)->Black(Index 0)
+        // Actually, we handle inversion by flipping the target pixel values before packing
+
         if (invertParam) {
-            console.log("[Render] Inverting image...");
-            pipeline = pipeline.negate();
+             console.log("[Render] Inverting pixels...");
+             for (let i = 0; i < processedData.length; i++) {
+                 processedData[i] = 255 - processedData[i];
+             }
         }
 
-        // Get raw 8-bit grayscale buffer
-        const { data: rawData, info } = await pipeline.raw().toBuffer({ resolveWithObject: true });
-
-        // --- DITHERING & MAPPING ---
-        // We do this manually on the buffer to ensure exact control over the palette indices
-        const processedData = Buffer.from(rawData); // Copy
-
         if (ditherParam) {
-            console.log(`[Render] Applying Floyd-Steinberg dithering (${bitDepth}-bit)...`);
+            console.log(`[Render] Applying Dithering (${bitDepth}-bit)...`);
             for (let y = 0; y < HEIGHT; y++) {
                 for (let x = 0; x < WIDTH; x++) {
                     const idx = y * WIDTH + x;
                     const oldPixel = processedData[idx];
                     let newPixel = 0;
 
-                    // Quantize
+                    // Quantize to target levels
                     if (bitDepth === 1) {
                          newPixel = oldPixel < 128 ? 0 : 255;
                     } else {
-                        // 2-bit quantization (0, 85, 170, 255)
+                        // 2-bit levels: 0, 85, 170, 255
                         if (oldPixel < 42) newPixel = 0;
                         else if (oldPixel < 128) newPixel = 85;
                         else if (oldPixel < 212) newPixel = 170;
@@ -237,7 +250,7 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
                     processedData[idx] = newPixel;
                     const error = oldPixel - newPixel;
 
-                    // Distribute error
+                    // Floyd-Steinberg
                     if (x + 1 < WIDTH) processedData[idx + 1] = Math.min(255, Math.max(0, processedData[idx + 1] + (error * 7) / 16));
                     if (y + 1 < HEIGHT) {
                         if (x > 0) processedData[idx + WIDTH - 1] = Math.min(255, Math.max(0, processedData[idx + WIDTH - 1] + (error * 3) / 16));
@@ -248,9 +261,9 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
             }
         }
 
-        // --- CREATE BMP ---
-        console.log(`[Render] Packing to ${bitDepth}-bit BMP...`);
-        imageCache = createBmp(processedData, WIDTH, HEIGHT, bitDepth);
+        // Pack to PNG
+        console.log(`[Render] Packing to ${bitDepth}-bit PNG...`);
+        imageCache = createPng(processedData, WIDTH, HEIGHT, bitDepth);
         console.log(`[Render] Generated ${imageCache.length} bytes.`);
 
     } catch (error) {
@@ -277,7 +290,7 @@ export async function GET(req: NextRequest) {
 
     return new NextResponse(imageCache as any, {
         headers: {
-            "Content-Type": "image/bmp", // Serving BMP now
+            "Content-Type": "image/png",
             "Content-Length": imageCache.length.toString(),
             "Cache-Control": "no-store, max-age=0",
         },

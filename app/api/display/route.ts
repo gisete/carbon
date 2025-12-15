@@ -7,106 +7,70 @@ export const dynamic = "force-dynamic";
 
 /**
  * TRMNL Director Endpoint (BYOS Protocol)
- * Returns JSON with image_url and refresh_rate for the TRMNL firmware
  */
 export async function GET(req: NextRequest) {
-	const searchParams = req.nextUrl.searchParams;
-	console.log("Params:", req.nextUrl.searchParams.toString());
-	console.log("Headers:", Object.fromEntries(req.headers));
+    const searchParams = req.nextUrl.searchParams;
+    console.log("Params:", req.nextUrl.searchParams.toString());
+    console.log("Headers:", Object.fromEntries(req.headers));
 
-	// Calculate battery percentage from TRMNL voltage header or fallback to query param
-	let batteryLevel: number | null = null;
+    // Calculate battery percentage
+    let batteryLevel: number | null = null;
+    const batteryVoltageHeader = req.headers.get("battery-voltage");
+    if (batteryVoltageHeader) {
+        const voltage = parseFloat(batteryVoltageHeader);
+        const percentage = Math.round((voltage - 3) / 0.012);
+        batteryLevel = Math.max(0, Math.min(100, percentage));
+    } else {
+        const batteryParam = searchParams.get("battery");
+        if (batteryParam) batteryLevel = parseFloat(batteryParam);
+    }
 
-	// 1. Try TRMNL header (official firmware sends voltage)
-	const batteryVoltageHeader = req.headers.get("battery-voltage");
-	if (batteryVoltageHeader) {
-		const voltage = parseFloat(batteryVoltageHeader);
-		// TRMNL formula: percentage = (voltage - 3) / 0.012
-		const percentage = Math.round((voltage - 3) / 0.012);
-		batteryLevel = Math.max(0, Math.min(100, percentage)); // Clamp between 0-100
-		console.log(`[Display API] Battery from header: ${voltage}V -> ${batteryLevel}%`);
-	}
-	// 2. Fallback to query param (for simulator or legacy calls)
-	else {
-		const batteryParam = searchParams.get("battery");
-		if (batteryParam) {
-			batteryLevel = parseFloat(batteryParam);
-			console.log(`[Display API] Battery from query param: ${batteryLevel}%`);
-		}
-	}
+    if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
+        try { await updateBatteryLevel(batteryLevel); } catch (err) { console.error(err); }
+    }
 
-	// Update battery level if we got one
-	if (batteryLevel !== null && batteryLevel >= 0 && batteryLevel <= 100) {
-		try {
-			await updateBatteryLevel(batteryLevel);
-		} catch (err) {
-			console.error("[Display API] Failed to update battery level:", err);
-		}
-	}
+    try {
+        const initialStatus = await tick();
+        const timeRemaining = initialStatus.nextSwitchTime - Date.now();
+        let status;
 
-	try {
-		// 1. Get current playlist status from Director
-		const initialStatus = await tick();
+        if (timeRemaining > 60000) {
+            console.log(`[Display API] Early wake detected -> Advancing Cycle`);
+            await advanceCycle();
+            status = await tick();
+        } else {
+            status = initialStatus;
+        }
 
-		// 2. Check for early wake-up (user button press)
-		const timeRemaining = initialStatus.nextSwitchTime - Date.now();
-		let status;
+        const settings = await getSettings();
+        const { startTime, endTime } = settings.system;
+        const isNight = isNightMode(startTime, endTime);
+        const sleepSeconds = calculateSyncedSleep(status.nextSwitchTime, batteryLevel, isNight, startTime);
 
-		if (timeRemaining > 60000) {
-			// More than 60 seconds early -> user pressed button
-			console.log(`[Display API] Early wake detected (${Math.round(timeRemaining / 1000)}s early) -> Advancing Cycle`);
-			await advanceCycle();
-			status = await tick(); // Re-fetch to get the new next screen
-		} else {
-			status = initialStatus;
-		}
+        const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+        const timestamp = Date.now();
+        const screenId = status.currentItem?.id || "logo";
+        const config = status.currentItem?.config || {};
+        const dither = config.dither !== undefined ? config.dither : true;
+        const invert = config.invert === true;
 
-		// 3. Get system settings for start/end times
-		const settings = await getSettings();
-		const { startTime, endTime } = settings.system;
+        let imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}&dither=${dither}`;
+        if (invert) imageUrl += "&invert=true";
 
-		// 4. Calculate smart sleep duration
-		const isNight = isNightMode(startTime, endTime);
-		const sleepSeconds = calculateSyncedSleep(status.nextSwitchTime, batteryLevel, isNight, startTime);
+        const response = {
+            status: 0,
+            image_url: imageUrl,
+            filename: `carbon-${timestamp}.png`, // Correct .png extension
+            refresh_rate: sleepSeconds,
+            reset_firmware: false,
+            update_firmware: false,
+        };
 
-		// 4. Construct absolute image URL
-		const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-		const timestamp = Date.now();
-		const screenId = status.currentItem?.id || "logo";
-		const config = status.currentItem?.config || {};
-		const dither = config.dither !== undefined ? config.dither : true;
-		const invert = config.invert === true;
-		let imageUrl = `${baseUrl}/api/render?screen=${screenId}&ts=${timestamp}&dither=${dither}`;
-		if (invert) {
-			imageUrl += "&invert=true";
-		}
+        console.log(`[Display API] Serving: ${status.currentItem?.title || "Night Mode"}, refresh in ${sleepSeconds}s`);
 
-		// 5. Build TRMNL response
-		const response = {
-			status: 0, // 0 = success
-			image_url: imageUrl,
-			filename: `carbon-${timestamp}.bmp`,
-			refresh_rate: sleepSeconds,
-			reset_firmware: false,
-			update_firmware: false,
-		};
-
-		console.log(`[Display API] Serving: ${status.currentItem?.title || "Night Mode"}, refresh in ${sleepSeconds}s`);
-
-		return NextResponse.json(response, {
-			status: 200,
-			headers: {
-				"Content-Type": "application/json",
-			},
-		});
-	} catch (error) {
-		console.error("[Display API] Error:", error);
-		return NextResponse.json(
-			{
-				status: 1, // Error status
-				error: "Display endpoint failed",
-			},
-			{ status: 500 }
-		);
-	}
+        return NextResponse.json(response, { status: 200 });
+    } catch (error) {
+        console.error("[Display API] Error:", error);
+        return NextResponse.json({ status: 1, error: "Display endpoint failed" }, { status: 500 });
+    }
 }
