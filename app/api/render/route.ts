@@ -275,7 +275,7 @@ export async function GET(req: NextRequest) {
 
     if (!imageCache) return NextResponse.json({ error: "Generation failed" }, { status: 500 });
 
-    return new NextResponse(imageCache, {
+    return new NextResponse(imageCache as any, {
         headers: {
             "Content-Type": "image/bmp", // Serving BMP now
             "Content-Length": imageCache.length.toString(),
