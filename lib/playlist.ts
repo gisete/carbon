@@ -5,7 +5,7 @@ import path from 'path';
 
 export interface PlaylistItem {
   id: string;
-  type: 'weather' | 'calendar' | 'custom-text' | 'logo' | 'image';
+  type: 'weather' | 'calendar' | 'custom-text' | 'logo' | 'image' | 'system' | 'comic';
   title: string;
   subtitle: string;
   config: Record<string, any> & {

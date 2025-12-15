@@ -174,6 +174,28 @@ export default function PlaylistPage() {
 					duration: 15,
 				};
 				break;
+			case "system":
+				newItem = {
+					id: generateId(),
+					type: "system",
+					title: "System Status",
+					subtitle: "CPU, RAM, Disk",
+					config: {},
+					lastUpdated: "Just now",
+					duration: 15,
+				};
+				break;
+			case "comic":
+				newItem = {
+					id: generateId(),
+					type: "comic",
+					title: "The New Yorker",
+					subtitle: "Daily Cartoon",
+					config: {},
+					lastUpdated: "Just now",
+					duration: 15,
+				};
+				break;
 		}
 		setIsScreenModalOpen(false);
 		setIsNewItem(true);

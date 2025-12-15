@@ -11,6 +11,8 @@ services:
     volumes:
       # Mount data directory for persistent storage
       - ./data:/app/data
+      - /sys/class/thermal:/sys/class/thermal:ro
+      - /proc:/host/proc:ro
     environment:
       - NODE_ENV=production
       - TZ=Europe/Lisbon

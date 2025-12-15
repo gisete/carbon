@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { Plus, Cloud, CalendarDays, Type, Square, Image } from "lucide-react";
+import { Plus, Cloud, CalendarDays, Type, Square, Image, Cpu, Smile } from "lucide-react";
 import Modal from "@/app/components/Modal";
 
-type ScreenType = "weather" | "calendar" | "custom-text" | "logo" | "image";
+type ScreenType = "weather" | "calendar" | "custom-text" | "logo" | "image" | "system" | "comic";
 
 interface ScreenOption {
 	type: ScreenType;
@@ -37,6 +37,18 @@ const SCREEN_OPTIONS: ScreenOption[] = [
 		title: "Custom Text",
 		description: "Display custom text message",
 		icon: Type,
+	},
+	{
+		type: "system",
+		title: "System Status",
+		description: "CPU, RAM, and Disk usage stats",
+		icon: Cpu,
+	},
+	{
+		type: "comic",
+		title: "The New Yorker",
+		description: "Daily Cartoon from The New Yorker",
+		icon: Smile,
 	},
 	{
 		type: "logo",

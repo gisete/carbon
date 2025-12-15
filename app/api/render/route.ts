@@ -28,6 +28,8 @@ function buildScreenUrl(item: PlaylistItem | null): string {
         case "custom-text": return `${baseUrl}/screens/custom-text?text=${encodeURIComponent(item.config?.text || "")}`;
         case "logo": return `${baseUrl}/screens/logo?fontSize=${item.config?.fontSize || "120"}`;
         case "image": return `${baseUrl}/screens/image?id=${item.id}`;
+        case "system": return `${baseUrl}/screens/system`;
+        case "comic": return `${baseUrl}/screens/comic`;
         default: return `${baseUrl}/screens/weather`;
     }
 }
@@ -82,7 +84,20 @@ async function generateImage(batteryParam: number | null, screenParam: string | 
         if (batteryLevel !== null) pageUrl.searchParams.set("battery", batteryLevel.toString());
 
         console.log(`[Render] Visiting: ${pageUrl.toString()}`);
-        await page.goto(pageUrl.toString(), { waitUntil: "networkidle0", timeout: 8000 });
+        await page.goto(pageUrl.toString(), { waitUntil: "networkidle0", timeout: 15000 });
+
+        // Wait for images to load (especially important for comic screen with external images)
+        await page.evaluate(() => {
+            return Promise.all(
+                Array.from(document.images)
+                    .filter(img => !img.complete)
+                    .map(img => new Promise(resolve => {
+                        img.addEventListener('load', resolve);
+                        img.addEventListener('error', resolve);
+                    }))
+            );
+        });
+
         const screenshotBuffer = await page.screenshot({ type: "png" });
         await browser.close();
 
