@@ -5,15 +5,10 @@ import { calculateSyncedSleep, isNightMode } from "@/lib/sleep";
 
 export const dynamic = "force-dynamic";
 
-/**
- * TRMNL Director Endpoint (BYOS Protocol)
- */
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
-    console.log("Params:", req.nextUrl.searchParams.toString());
-    console.log("Headers:", Object.fromEntries(req.headers));
 
-    // Calculate battery percentage
+    // Battery Logic
     let batteryLevel: number | null = null;
     const batteryVoltageHeader = req.headers.get("battery-voltage");
     if (batteryVoltageHeader) {
@@ -30,12 +25,13 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        // Director Logic
         const initialStatus = await tick();
         const timeRemaining = initialStatus.nextSwitchTime - Date.now();
         let status;
 
         if (timeRemaining > 60000) {
-            console.log(`[Display API] Early wake detected -> Advancing Cycle`);
+            console.log(`[Display API] Early wake -> Advancing`);
             await advanceCycle();
             status = await tick();
         } else {
@@ -60,13 +56,13 @@ export async function GET(req: NextRequest) {
         const response = {
             status: 0,
             image_url: imageUrl,
-            filename: `carbon-${timestamp}.png`, // Correct .png extension
+            filename: `carbon-${timestamp}.png`,
             refresh_rate: sleepSeconds,
             reset_firmware: false,
             update_firmware: false,
         };
 
-        console.log(`[Display API] Serving: ${status.currentItem?.title || "Night Mode"}, refresh in ${sleepSeconds}s`);
+        console.log(`[Display API] Serving: ${status.currentItem?.title || "Night Mode"}`);
 
         return NextResponse.json(response, { status: 200 });
     } catch (error) {
