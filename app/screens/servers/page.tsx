@@ -1,195 +1,245 @@
 import si from 'systeminformation';
 import PageHeader from '@/app/components/PageHeader';
 import { getHaEntity } from '@/lib/ha';
-import { Server, Database, Thermometer, Activity, Clock, HardDrive } from 'lucide-react';
+import { Server, Cpu, MemoryStick, HardDrive, Database, Clock } from 'lucide-react';
 
-// UGREEN NAS Entity IDs - Edit these to match your Home Assistant setup
-const UGREEN_CPU = 'sensor.ugreen_nas_cpu_usage';
-const UGREEN_RAM = 'sensor.ugreen_nas_ram_usage';
-const UGREEN_TEMP = 'sensor.ugreen_nas_cpu_temperature';
-const UGREEN_UPTIME = 'sensor.ugreen_nas_total_runtime';
-const UGREEN_STORAGE_FREE = 'sensor.ugreen_nas_pool_1_available_size';
-const UGREEN_STORAGE_TOTAL = 'sensor.ugreen_nas_pool_1_total_size';
+// --- TYPES ---
+interface ServerData {
+	name: string;
+	cpuLoad: number;
+	cpuTemp: number; // in Celsius
+	ramUsedPercent: number; // 0-100
+	ramText: string; // e.g. "4.2 / 8 GB"
+	storageUsedPercent: number; // 0-100
+	storageText: string; // e.g. "1.2 / 4 TB"
+	driveTemp: number | null; // Celsius (optional)
+	uptimeDays: string; // e.g. "12.5"
+}
 
+// --- UGREEN NAS Entity IDs ---
+const NAS_CPU_USAGE = 'sensor.ugreen_nas_cpu_usage';
+const NAS_CPU_TEMP = 'sensor.ugreen_nas_cpu_temperature';
+const NAS_RAM_USAGE = 'sensor.ugreen_nas_ram_usage';
+const NAS_UPTIME = 'sensor.ugreen_nas_total_runtime';
+const NAS_HD_SIZE = 'sensor.ugreen_nas_pool_1_disk_1_size';
+const NAS_HD_USED = 'sensor.ugreen_nas_pool_1_volume_1_used_size';
+const NAS_DISK_TEMP = 'sensor.ugreen_nas_disk_1_temperature';
+
+// --- REUSABLE COMPONENT ---
+function ServerColumn({ data }: { data: ServerData }) {
+	// Format uptime: show months if over 31 days
+	const uptimeDaysNum = parseFloat(data.uptimeDays);
+	let uptimeDisplay = `${data.uptimeDays}d`;
+	if (uptimeDaysNum > 31) {
+		const months = (uptimeDaysNum / 30).toFixed(1);
+		uptimeDisplay = `${months}mo`;
+	}
+
+	return (
+		<div className="p-6 flex flex-col justify-between h-full">
+			{/* Header */}
+			<div className="flex items-center justify-between mb-5">
+				<div className="flex items-center gap-2">
+					<Server className="w-6 h-6" />
+					<div className="text-2xl font-black tracking-tight">{data.name}</div>
+				</div>
+				<div className="bg-black text-white px-3 py-1 rounded-full flex items-center gap-1.5">
+					<Clock className="w-4 h-4" />
+					<span className="text-sm font-medium">{uptimeDisplay}</span>
+				</div>
+			</div>
+
+			{/* Metrics List */}
+			<div className="flex flex-col gap-5 flex-1">
+				{/* CPU Temperature */}
+				<div className="flex flex-col gap-1.5">
+					<div className="flex items-end justify-between">
+						<div className="flex items-center gap-2">
+							<Cpu className="w-5 h-5" />
+							<span className="text-lg font-bold">CPU Temp</span>
+						</div>
+						<div className="text-lg font-normal">{data.cpuTemp.toFixed(0)}°C</div>
+					</div>
+				</div>
+
+				{/* CPU Load */}
+				<div className="flex flex-col gap-1.5">
+					<div className="flex items-end justify-between">
+						<div className="flex items-center gap-2">
+							<Cpu className="w-5 h-5" />
+							<span className="text-lg font-bold">CPU</span>
+						</div>
+						<div className="text-lg font-normal">{data.cpuLoad.toFixed(1)}%</div>
+					</div>
+					<div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+						<div
+							className="h-full bg-black rounded-full transition-all"
+							style={{ width: `${data.cpuLoad}%` }}
+						/>
+					</div>
+				</div>
+
+				{/* RAM */}
+				<div className="flex flex-col gap-1.5">
+					<div className="flex items-end justify-between">
+						<div className="flex items-center gap-2">
+							<MemoryStick className="w-5 h-5" />
+							<span className="text-lg font-bold">RAM</span>
+						</div>
+						<div className="text-lg font-normal">{data.ramText}</div>
+					</div>
+					<div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+						<div
+							className="h-full bg-black rounded-full transition-all"
+							style={{ width: `${data.ramUsedPercent}%` }}
+						/>
+					</div>
+				</div>
+
+				{/* Storage */}
+				<div className="flex flex-col gap-1.5">
+					<div className="flex items-end justify-between">
+						<div className="flex items-center gap-2">
+							{data.name.includes('NAS') ? (
+								<HardDrive className="w-5 h-5" />
+							) : (
+								<HardDrive className="w-5 h-5" />
+							)}
+							<span className="text-lg font-bold">{data.name.includes('NAS') ? 'HD' : 'SSD'}</span>
+							{data.driveTemp !== null && (
+								<div className="text-xs font-medium border border-black rounded-xl px-2 py-0.5">
+									{data.driveTemp.toFixed(0)}°
+								</div>
+							)}
+						</div>
+						<div className="text-lg font-normal">{data.storageText}</div>
+					</div>
+					<div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+						<div
+							className="h-full bg-black rounded-full transition-all"
+							style={{ width: `${data.storageUsedPercent}%` }}
+						/>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// --- MAIN COMPONENT ---
 export default async function ServersScreen() {
-	// Fetch Local Server Information
-	const [cpuTemp, cpuLoad, mem, uptime] = await Promise.all([
+	// ===== FETCH LOCAL SERVER DATA =====
+	const [cpuTemp, cpuLoad, mem, disk, uptime] = await Promise.all([
 		si.cpuTemperature(),
 		si.currentLoad(),
 		si.mem(),
+		si.fsSize(),
 		si.time(),
 	]);
 
 	// Calculate Local Server Values
-	const localCpuLoad = (cpuLoad.currentLoad || 0).toFixed(1);
-	const localCpuTemp = (cpuTemp.main || 0).toFixed(1);
+	const localCpuLoad = cpuLoad.currentLoad || 0;
+	const localCpuTemp = cpuTemp.main || 0;
+	const localMemPercent = (mem.used / mem.total) * 100;
 	const localMemUsedGB = (mem.used / 1024 / 1024 / 1024).toFixed(1);
 	const localMemTotalGB = (mem.total / 1024 / 1024 / 1024).toFixed(1);
-	const localMemPercent = ((mem.used / mem.total) * 100).toFixed(1);
-	const localUptimeHours = (uptime.uptime / 3600).toFixed(1);
+	const localRamText = `${localMemUsedGB} / ${localMemTotalGB} GB`;
 
-	// Fetch UGREEN NAS Information from Home Assistant
-	const [ugreenCpu, ugreenRam, ugreenTemp, ugreenUptime, ugreenStorageFree, ugreenStorageTotal] = await Promise.all([
-		getHaEntity(UGREEN_CPU),
-		getHaEntity(UGREEN_RAM),
-		getHaEntity(UGREEN_TEMP),
-		getHaEntity(UGREEN_UPTIME),
-		getHaEntity(UGREEN_STORAGE_FREE),
-		getHaEntity(UGREEN_STORAGE_TOTAL),
+	// Get root filesystem usage
+	const rootDisk = disk.find(d => d.mount === '/') || disk[0];
+	const localDiskPercent = rootDisk ? rootDisk.use : 0;
+	const localDiskUsedGB = rootDisk ? (rootDisk.used / 1024 / 1024 / 1024).toFixed(1) : '0';
+	const localDiskTotalGB = rootDisk ? (rootDisk.size / 1024 / 1024 / 1024).toFixed(1) : '0';
+	const localStorageText = `${localDiskPercent.toFixed(0)}%`;
+
+	const localUptimeDays = (uptime.uptime / 86400).toFixed(0); // Convert seconds to days
+
+	const localServerData: ServerData = {
+		name: 'Mini PC',
+		cpuLoad: localCpuLoad,
+		cpuTemp: localCpuTemp,
+		ramUsedPercent: localMemPercent,
+		ramText: localRamText,
+		storageUsedPercent: localDiskPercent,
+		storageText: localStorageText,
+		driveTemp: null, // Hard to get in Docker
+		uptimeDays: localUptimeDays,
+	};
+
+	// ===== FETCH UGREEN NAS DATA =====
+	const [nasCpu, nasCpuTemp, nasRam, nasUptime, nasHdSize, nasHdUsed, nasDiskTemp] = await Promise.all([
+		getHaEntity(NAS_CPU_USAGE),
+		getHaEntity(NAS_CPU_TEMP),
+		getHaEntity(NAS_RAM_USAGE),
+		getHaEntity(NAS_UPTIME),
+		getHaEntity(NAS_HD_SIZE),
+		getHaEntity(NAS_HD_USED),
+		getHaEntity(NAS_DISK_TEMP),
 	]);
 
 	// Parse UGREEN Values (with fallbacks)
-	const ugreenCpuValue = ugreenCpu?.state ? parseFloat(ugreenCpu.state) : 0;
-	const ugreenRamValue = ugreenRam?.state ? parseFloat(ugreenRam.state) : 0;
-	const ugreenTempValue = ugreenTemp?.state ? parseFloat(ugreenTemp.state) : 0;
-	const ugreenUptimeValue = ugreenUptime?.state || '0h';
+	const nasCpuLoad = nasCpu?.state ? parseFloat(nasCpu.state) : 0;
+	const nasCpuTempValue = nasCpuTemp?.state ? parseFloat(nasCpuTemp.state) : 0;
+	const nasRamPercent = nasRam?.state ? parseFloat(nasRam.state) : 0;
 
-	// Calculate Storage Usage
-	let storageDisplay = 'N/A';
-	let storagePercent = 0;
+	// Calculate RAM in GB (assuming 8GB total - adjust if needed)
+	const nasRamUsedGB = (nasRamPercent * 8 / 100).toFixed(1);
+	const nasRamText = `${nasRamUsedGB} / 8 GB`;
 
-	if (ugreenStorageTotal?.state && ugreenStorageFree?.state) {
-		const totalTB = parseFloat(ugreenStorageTotal.state);
-		const freeTB = parseFloat(ugreenStorageFree.state);
-		const usedTB = totalTB - freeTB;
-		storagePercent = ((usedTB / totalTB) * 100);
-		storageDisplay = `${usedTB.toFixed(1)}/${totalTB.toFixed(1)} TB`;
-	} else if (ugreenStorageFree?.state) {
-		const freeTB = parseFloat(ugreenStorageFree.state);
-		storageDisplay = `${freeTB.toFixed(1)} TB Free`;
+	// Calculate Hard Drive Storage
+	let nasStoragePercent = 0;
+	let nasStorageText = 'N/A';
+	if (nasHdSize?.state && nasHdUsed?.state) {
+		const totalTB = parseFloat(nasHdSize.state);
+		const usedTB = parseFloat(nasHdUsed.state);
+		nasStoragePercent = (usedTB / totalTB) * 100;
+		nasStorageText = `${usedTB.toFixed(1)} / ${totalTB.toFixed(1)} TB`;
+	} else if (nasHdUsed?.state) {
+		const usedTB = parseFloat(nasHdUsed.state);
+		nasStorageText = `${usedTB.toFixed(1)} TB Used`;
 	}
 
+	// Parse Uptime (check if it's already in days, hours, or seconds)
+	const nasUptimeRaw = nasUptime?.state ? parseFloat(nasUptime.state) : 0;
+	// If the value is very large (like in seconds), convert to days
+	// If it's already small (like already in days), use as is
+	let nasUptimeDays: string;
+	if (nasUptimeRaw > 1000) {
+		// Likely in seconds or hours, convert to days
+		nasUptimeDays = (nasUptimeRaw / 86400).toFixed(0); // Convert seconds to days
+	} else {
+		// Already in days or hours
+		nasUptimeDays = nasUptimeRaw.toFixed(0);
+	}
+
+	// Parse Disk Temp
+	const nasDiskTempValue = nasDiskTemp?.state ? parseFloat(nasDiskTemp.state) : null;
+
+	const nasServerData: ServerData = {
+		name: 'NAS',
+		cpuLoad: nasCpuLoad,
+		cpuTemp: nasCpuTempValue,
+		ramUsedPercent: nasRamPercent,
+		ramText: nasRamText,
+		storageUsedPercent: nasStoragePercent,
+		storageText: nasStorageText,
+		driveTemp: nasDiskTempValue,
+		uptimeDays: nasUptimeDays,
+	};
+
+	// ===== RENDER =====
 	return (
-		<div className="w-[800px] h-[480px] bg-white p-6 flex flex-col font-chareink">
-			<PageHeader title="Infrastructure" />
+		<div className="w-[800px] h-[480px] bg-white p-4 flex flex-col font-chareink relative">
+			<div className="grid grid-cols-2 gap-4 h-full">
+				{/* LEFT COLUMN: Mini PC */}
+				<ServerColumn data={localServerData} />
 
-			<div className="grid grid-cols-2 gap-0 flex-1 mt-4">
-				{/* LEFT COLUMN: Carbon Node */}
-				<div className="flex flex-col gap-2 pr-3 border-r-2 border-black">
-					{/* Carbon Node Header */}
-					<div className="border-2 border-black p-2">
-						<div className="flex items-center gap-2">
-							<Server className="w-5 h-5" />
-							<div className="text-lg font-bold">CARBON NODE</div>
-						</div>
-					</div>
-
-					{/* Local CPU Load */}
-					<div className="border-2 border-black p-2 flex flex-col">
-						<div className="flex items-center gap-2 mb-1">
-							<Activity className="w-4 h-4" />
-							<div className="text-xs font-medium">CPU LOAD</div>
-						</div>
-						<div className="text-3xl font-bold mb-1">{localCpuLoad}%</div>
-						<div className="w-full h-2 border border-black bg-white">
-							<div
-								className="h-full bg-black transition-all"
-								style={{ width: `${localCpuLoad}%` }}
-							/>
-						</div>
-					</div>
-
-					{/* Local RAM Usage */}
-					<div className="border-2 border-black p-2 flex flex-col">
-						<div className="flex items-center gap-2 mb-1">
-							<Database className="w-4 h-4" />
-							<div className="text-xs font-medium">RAM USAGE</div>
-						</div>
-						<div className="text-2xl font-bold mb-1">{localMemUsedGB}/{localMemTotalGB} GB</div>
-						<div className="w-full h-2 border border-black bg-white">
-							<div
-								className="h-full bg-black transition-all"
-								style={{ width: `${localMemPercent}%` }}
-							/>
-						</div>
-					</div>
-
-					{/* Local CPU Temp */}
-					<div className="border-2 border-black p-2 flex flex-col">
-						<div className="flex items-center gap-2 mb-1">
-							<Thermometer className="w-4 h-4" />
-							<div className="text-xs font-medium">CPU TEMP</div>
-						</div>
-						<div className="text-3xl font-bold">{localCpuTemp}°C</div>
-					</div>
-
-					{/* Local Uptime */}
-					<div className="border-2 border-black p-2 flex flex-col">
-						<div className="flex items-center gap-2 mb-1">
-							<Clock className="w-4 h-4" />
-							<div className="text-xs font-medium">UPTIME</div>
-						</div>
-						<div className="text-xl font-bold">{localUptimeHours}h</div>
-					</div>
-				</div>
-
-				{/* RIGHT COLUMN: UGREEN NAS */}
-				<div className="flex flex-col gap-2 pl-3">
-					{/* UGREEN NAS Header */}
-					<div className="border-2 border-black p-2">
-						<div className="flex items-center gap-2">
-							<Server className="w-5 h-5" />
-							<div className="text-lg font-bold">UGREEN NAS</div>
-						</div>
-					</div>
-
-					{/* UGREEN CPU Usage */}
-					<div className="border-2 border-black p-2 flex flex-col">
-						<div className="flex items-center gap-2 mb-1">
-							<Activity className="w-4 h-4" />
-							<div className="text-xs font-medium">CPU USAGE</div>
-						</div>
-						<div className="text-3xl font-bold mb-1">{ugreenCpuValue.toFixed(1)}%</div>
-						<div className="w-full h-2 border border-black bg-white">
-							<div
-								className="h-full bg-black transition-all"
-								style={{ width: `${ugreenCpuValue}%` }}
-							/>
-						</div>
-					</div>
-
-					{/* UGREEN RAM Usage */}
-					<div className="border-2 border-black p-2 flex flex-col">
-						<div className="flex items-center gap-2 mb-1">
-							<Database className="w-4 h-4" />
-							<div className="text-xs font-medium">RAM USAGE</div>
-						</div>
-						<div className="text-3xl font-bold mb-1">{ugreenRamValue.toFixed(1)}%</div>
-						<div className="w-full h-2 border border-black bg-white">
-							<div
-								className="h-full bg-black transition-all"
-								style={{ width: `${ugreenRamValue}%` }}
-							/>
-						</div>
-					</div>
-
-					{/* UGREEN Temperature */}
-					<div className="border-2 border-black p-2 flex flex-col">
-						<div className="flex items-center gap-2 mb-1">
-							<Thermometer className="w-4 h-4" />
-							<div className="text-xs font-medium">TEMPERATURE</div>
-						</div>
-						<div className="text-3xl font-bold">{ugreenTempValue.toFixed(1)}°C</div>
-					</div>
-
-					{/* UGREEN Storage */}
-					<div className="border-2 border-black p-2 flex flex-col">
-						<div className="flex items-center gap-2 mb-1">
-							<HardDrive className="w-4 h-4" />
-							<div className="text-xs font-medium">STORAGE (POOL 1)</div>
-						</div>
-						<div className="text-2xl font-bold mb-1">{storageDisplay}</div>
-						{storagePercent > 0 && (
-							<div className="w-full h-2 border border-black bg-white">
-								<div
-									className="h-full bg-black transition-all"
-									style={{ width: `${storagePercent}%` }}
-								/>
-							</div>
-						)}
-					</div>
-				</div>
+				{/* RIGHT COLUMN: NAS */}
+				<ServerColumn data={nasServerData} />
 			</div>
+
+			{/* Center Separator Line - 70% height, centered vertically */}
+			<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-[70%] bg-gray-300" />
 		</div>
 	);
 }
