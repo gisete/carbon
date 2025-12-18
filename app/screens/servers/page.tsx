@@ -36,7 +36,7 @@ function ServerColumn({ data }: { data: ServerData }) {
 	}
 
 	return (
-		<div className="p-6 flex flex-col justify-between h-full">
+		<div className="p-6 flex flex-col h-full">
 			{/* Header */}
 			<div className="flex items-center justify-between mb-5">
 				<div className="flex items-center gap-2">
@@ -49,8 +49,11 @@ function ServerColumn({ data }: { data: ServerData }) {
 				</div>
 			</div>
 
+			{/* Spacer to push metrics to bottom */}
+			<div className="flex-1" />
+
 			{/* Metrics List */}
-			<div className="flex flex-col gap-5 flex-1">
+			<div className="flex flex-col gap-5">
 				{/* CPU Temperature */}
 				<div className="flex flex-col gap-1.5">
 					<div className="flex items-end justify-between">
@@ -140,8 +143,11 @@ export default async function ServersScreen() {
 	// Calculate Local Server Values
 	const localCpuLoad = cpuLoad.currentLoad || 0;
 	const localCpuTemp = cpuTemp.main || 0;
-	const localMemPercent = (mem.used / mem.total) * 100;
-	const localMemUsedGB = (mem.used / 1024 / 1024 / 1024).toFixed(1);
+
+	// CRITICAL: Use mem.available to exclude Linux disk cache for accurate RAM usage
+	const localMemUsed = mem.total - mem.available;
+	const localMemPercent = (localMemUsed / mem.total) * 100;
+	const localMemUsedGB = (localMemUsed / 1024 / 1024 / 1024).toFixed(1);
 	const localMemTotalGB = (mem.total / 1024 / 1024 / 1024).toFixed(1);
 	const localRamText = `${localMemUsedGB} / ${localMemTotalGB} GB`;
 
@@ -229,17 +235,17 @@ export default async function ServersScreen() {
 
 	// ===== RENDER =====
 	return (
-		<div className="w-[800px] h-[480px] bg-white p-4 flex flex-col font-chareink relative">
-			<div className="grid grid-cols-2 gap-4 h-full">
+		<div className="w-[800px] h-[480px] bg-white p-4 flex flex-col font-chareink">
+			<div className="grid grid-cols-2 gap-4 h-full relative">
 				{/* LEFT COLUMN: Mini PC */}
 				<ServerColumn data={localServerData} />
 
 				{/* RIGHT COLUMN: NAS */}
 				<ServerColumn data={nasServerData} />
-			</div>
 
-			{/* Center Separator Line - 70% height, centered vertically */}
-			<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-[70%] bg-gray-300" />
+				{/* Center Separator Line - 100% height of content */}
+				<div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[5px] bg-gray-300" />
+			</div>
 		</div>
 	);
 }
