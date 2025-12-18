@@ -196,6 +196,17 @@ export default function PlaylistPage() {
 					duration: 15,
 				};
 				break;
+			case "servers":
+				newItem = {
+					id: generateId(),
+					type: "servers",
+					title: "Infrastructure",
+					subtitle: "Carbon Node & UGREEN NAS",
+					config: {},
+					lastUpdated: "Just now",
+					duration: 15,
+				};
+				break;
 		}
 		setIsScreenModalOpen(false);
 		setIsNewItem(true);

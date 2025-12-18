@@ -30,6 +30,7 @@ function buildScreenUrl(item: PlaylistItem | null): string {
         case "image": return `${baseUrl}/screens/image?id=${item.id}`;
         case "system": return `${baseUrl}/screens/system`;
         case "comic": return `${baseUrl}/screens/comic`;
+        case "servers": return `${baseUrl}/screens/servers`;
         default: return `${baseUrl}/screens/weather`;
     }
 }
