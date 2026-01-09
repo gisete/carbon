@@ -412,7 +412,7 @@ export async function tick(): Promise<DirectorStatus> {
 
 		// Log the screen switch with sleep duration
 		if (DEBUG) {
-			const screenName = nextItem.name || nextItem.screen || "Unknown";
+			const screenName = nextItem.title || nextItem.type || "Unknown";
 			const sleepDuration = formatDuration(nextDuration);
 			console.log(`[Director] Switched to: ${screenName} → sleeping ${sleepDuration}`);
 		}
