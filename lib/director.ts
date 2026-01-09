@@ -32,6 +32,9 @@ const STATE_FILE = path.join(DATA_DIR, "state.json");
 // Debug logging (set to false to disable)
 const DEBUG = true;
 
+// Track last logged playlist to prevent duplicate logs
+let lastLoggedPlaylistId: string | null = null;
+
 // --- HELPER: ENSURE DATA DIRECTORY EXISTS ---
 
 async function ensureDataDir() {
@@ -39,6 +42,22 @@ async function ensureDataDir() {
 		await fs.access(DATA_DIR);
 	} catch {
 		await fs.mkdir(DATA_DIR, { recursive: true });
+	}
+}
+
+// --- HELPER: FORMAT DURATION ---
+
+function formatDuration(durationMs: number): string {
+	const minutes = Math.floor(durationMs / 60000);
+	const hours = Math.floor(minutes / 60);
+	const remainingMinutes = minutes % 60;
+
+	if (hours > 0 && remainingMinutes > 0) {
+		return `${hours}h ${remainingMinutes}m`;
+	} else if (hours > 0) {
+		return `${hours}h`;
+	} else {
+		return `${minutes}m`;
 	}
 }
 
@@ -126,7 +145,10 @@ async function resolveActivePlaylist(): Promise<Playlist | null> {
 	if (collection.activePlaylistId !== null) {
 		const manualPlaylist = collection.playlists.find((p) => p.id === collection.activePlaylistId);
 		if (manualPlaylist) {
-			if (DEBUG) console.log("[Director] Using manual override playlist:", manualPlaylist.name);
+			if (DEBUG && lastLoggedPlaylistId !== manualPlaylist.id) {
+				console.log("[Director] Using manual override playlist:", manualPlaylist.name);
+				lastLoggedPlaylistId = manualPlaylist.id;
+			}
 			return manualPlaylist;
 		}
 	}
@@ -173,14 +195,20 @@ async function resolveActivePlaylist(): Promise<Playlist | null> {
 	}
 
 	if (bestMatch) {
-		if (DEBUG) console.log("[Director] Using specific playlist:", bestMatch.name);
+		if (DEBUG && lastLoggedPlaylistId !== bestMatch.id) {
+			console.log("[Director] Using specific playlist:", bestMatch.name);
+			lastLoggedPlaylistId = bestMatch.id;
+		}
 		return bestMatch;
 	}
 
 	// Priority 3: Default Fallback
 	const defaultPlaylist = collection.playlists.find((p) => p.isDefault);
 	if (defaultPlaylist) {
-		if (DEBUG) console.log("[Director] Using default fallback playlist:", defaultPlaylist.name);
+		if (DEBUG && lastLoggedPlaylistId !== defaultPlaylist.id) {
+			console.log("[Director] Using default fallback playlist:", defaultPlaylist.name);
+			lastLoggedPlaylistId = defaultPlaylist.id;
+		}
 		return defaultPlaylist;
 	}
 
@@ -381,6 +409,13 @@ export async function tick(): Promise<DirectorStatus> {
 		const nextItem = visibleItems[newIndex];
 		const nextDuration = (nextItem.duration || settings.system.refreshInterval) * 60 * 1000;
 		const nextEndTime = now + nextDuration;
+
+		// Log the screen switch with sleep duration
+		if (DEBUG) {
+			const screenName = nextItem.name || nextItem.screen || "Unknown";
+			const sleepDuration = formatDuration(nextDuration);
+			console.log(`[Director] Switched to: ${screenName} → sleeping ${sleepDuration}`);
+		}
 
 		const updatedState = await getState();
 		return {
