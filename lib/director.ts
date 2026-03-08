@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { getPlaylist, PlaylistItem, getPlaylistCollection, Playlist } from "./playlist";
 import { getSettings } from "./settings";
+import { getCalendarEvents } from "./calendar";
 
 // --- TYPES ---
 
@@ -11,6 +12,13 @@ interface DirectorState {
 	lastUpdate: string;
 	activePlaylistId: string | null; // Track which playlist is currently active
 	batteryLevel?: number; // Battery level from device (0-100)
+	skipCache?: {
+		[itemId: string]: {
+			shouldSkip: boolean;
+			cachedAt: number;   // timestamp
+			weekKey: string;    // ISO week string e.g. "2026-W10"
+		};
+	};
 }
 
 export interface DirectorStatus {
@@ -215,6 +223,60 @@ async function resolveActivePlaylist(): Promise<Playlist | null> {
 	return collection.playlists[0];
 }
 
+// --- SKIP CACHE ---
+
+/**
+ * Returns the ISO week string for the current date, e.g. "2026-W10".
+ * Uses the ISO week definition (week containing Thursday, Monday-based).
+ */
+function getWeekKey(): string {
+	const now = new Date();
+	// Find Thursday of the current ISO week
+	const thursday = new Date(now);
+	thursday.setDate(now.getDate() + (4 - (now.getDay() || 7)));
+	const year = thursday.getFullYear();
+	const startOfYear = new Date(year, 0, 1);
+	const weekNumber = Math.ceil(((thursday.getTime() - startOfYear.getTime()) / 86400000 + 1) / 7);
+	return `${year}-W${String(weekNumber).padStart(2, "0")}`;
+}
+
+/**
+ * Determines whether a playlist item should be silently skipped.
+ * Currently only skips weekly calendar items when they have no events this week.
+ * Results are cached per item per week and expire after 1 hour.
+ */
+async function shouldSkipItem(item: PlaylistItem, state: DirectorState): Promise<boolean> {
+	if (item.type !== "calendar" || item.config?.viewMode !== "weekly") {
+		return false;
+	}
+
+	const currentWeekKey = getWeekKey();
+	const ONE_HOUR = 60 * 60 * 1000;
+	const cached = state.skipCache?.[item.id];
+
+	if (cached && cached.weekKey === currentWeekKey && Date.now() - cached.cachedAt < ONE_HOUR) {
+		return cached.shouldSkip;
+	}
+
+	// Fetch fresh data
+	const events = await getCalendarEvents("weekly", item.config?.icalUrl);
+	const shouldSkip = events.length === 0;
+
+	if (shouldSkip) {
+		console.log(`[Director] Skipping weekly calendar (no events this week): ${item.title}`);
+	}
+
+	if (!state.skipCache) state.skipCache = {};
+	state.skipCache[item.id] = {
+		shouldSkip,
+		cachedAt: Date.now(),
+		weekKey: currentWeekKey,
+	};
+
+	await saveState(state);
+	return shouldSkip;
+}
+
 // --- MAIN DIRECTOR FUNCTIONS ---
 
 export async function getCurrentItem(): Promise<PlaylistItem | null> {
@@ -230,10 +292,15 @@ export async function getCurrentItem(): Promise<PlaylistItem | null> {
 		return null;
 	}
 
-	const visibleItems = activePlaylist.items.filter((item) => item.visible !== false);
-	if (visibleItems.length === 0) return null;
-
 	const state = await getState();
+
+	const visibleItems = await Promise.all(
+		activePlaylist.items
+			.filter((item) => item.visible !== false)
+			.map(async (item) => ({ item, skip: await shouldSkipItem(item, state) }))
+	).then((results) => results.filter((r) => !r.skip).map((r) => r.item));
+
+	if (visibleItems.length === 0) return null;
 
 	const needsReset = state.activePlaylistId !== activePlaylist.id || state.currentCycleIndex >= visibleItems.length;
 
@@ -363,7 +430,11 @@ export async function tick(): Promise<DirectorStatus> {
 		};
 	}
 
-	const visibleItems = activePlaylist.items.filter((item) => item.visible !== false);
+	const visibleItems = await Promise.all(
+		activePlaylist.items
+			.filter((item) => item.visible !== false)
+			.map(async (item) => ({ item, skip: await shouldSkipItem(item, state) }))
+	).then((results) => results.filter((r) => !r.skip).map((r) => r.item));
 
 	if (visibleItems.length === 0) {
 		return {

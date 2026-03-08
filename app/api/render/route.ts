@@ -31,6 +31,7 @@ function buildScreenUrl(item: PlaylistItem | null): string {
         case "system": return `${baseUrl}/screens/system`;
         case "comic": return `${baseUrl}/screens/comic`;
         case "servers": return `${baseUrl}/screens/servers`;
+        case "quote": return `${baseUrl}/screens/quote`;
         default: return `${baseUrl}/screens/weather`;
     }
 }

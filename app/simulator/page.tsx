@@ -35,6 +35,14 @@ function buildScreenUrl(item: PlaylistItem): string {
 		case "logo":
 			const fontSize = item.config?.fontSize || "120";
 			return `${baseUrl}/logo?fontSize=${fontSize}`;
+		case "system":
+			return `${baseUrl}/system`;
+		case "comic":
+			return `${baseUrl}/comic`;
+		case "servers":
+			return `${baseUrl}/servers`;
+		case "quote":
+			return `${baseUrl}/quote`;
 		default:
 			return baseUrl;
 	}

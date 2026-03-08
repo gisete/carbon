@@ -207,6 +207,17 @@ export default function PlaylistPage() {
 					duration: 15,
 				};
 				break;
+			case "quote":
+				newItem = {
+					id: generateId(),
+					type: "quote",
+					title: "Daily Quote",
+					subtitle: "Curated quote of the day",
+					config: {},
+					lastUpdated: "Just now",
+					duration: 15,
+				};
+				break;
 		}
 		setIsScreenModalOpen(false);
 		setIsNewItem(true);
