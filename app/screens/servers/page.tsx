@@ -1,3 +1,4 @@
+import { promises as fs } from 'fs';
 import si from 'systeminformation';
 import PageHeader from '@/app/components/PageHeader';
 import { getHaEntity } from '@/lib/ha';
@@ -132,8 +133,11 @@ function ServerColumn({ data }: { data: ServerData }) {
 // --- MAIN COMPONENT ---
 export default async function ServersScreen() {
 	// ===== FETCH LOCAL SERVER DATA =====
-	const [cpuTemp, cpuLoad, mem, disk, uptime] = await Promise.all([
-		si.cpuTemperature(),
+	// Read CPU temp directly from thermal_zone2 (x86_pkg_temp)
+	const cpuTempRaw = await fs.readFile('/sys/class/thermal/thermal_zone2/temp', 'utf-8');
+	const localCpuTemp = parseInt(cpuTempRaw.trim()) / 1000; // Convert from millidegrees
+
+	const [cpuLoad, mem, disk, uptime] = await Promise.all([
 		si.currentLoad(),
 		si.mem(),
 		si.fsSize(),
@@ -142,7 +146,6 @@ export default async function ServersScreen() {
 
 	// Calculate Local Server Values
 	const localCpuLoad = cpuLoad.currentLoad || 0;
-	const localCpuTemp = cpuTemp.main || 0;
 
 	// CRITICAL: Use mem.available to exclude Linux disk cache for accurate RAM usage
 	const localMemUsed = mem.total - mem.available;
