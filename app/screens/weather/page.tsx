@@ -2,8 +2,9 @@ import { getIpmaForecast } from "@/lib/ipma";
 import { getPlaylist } from "@/lib/playlist";
 import CurrentView from "./views/CurrentView";
 import WeeklyView from "./views/WeeklyView";
+import FunView from "./views/FunView";
 
-type WeatherView = "current" | "weekly";
+type WeatherView = "current" | "weekly" | "fun";
 
 interface WeatherScreenProps {
 	searchParams: Promise<{
@@ -33,7 +34,7 @@ export default async function WeatherScreen({ searchParams }: WeatherScreenProps
 	const finalViewParam = viewParam || configView || "current";
 
 	// Validate view parameter
-	const validViews: WeatherView[] = ["current", "weekly"];
+	const validViews: WeatherView[] = ["current", "weekly", "fun"];
 	const view: WeatherView = validViews.includes(finalViewParam as WeatherView)
 		? (finalViewParam as WeatherView)
 		: "current";
@@ -54,6 +55,9 @@ export default async function WeatherScreen({ searchParams }: WeatherScreenProps
 	switch (view) {
 		case "weekly":
 			ViewComponent = <WeeklyView data={data} />;
+			break;
+		case "fun":
+			ViewComponent = <FunView data={data} />;
 			break;
 		case "current":
 		default:

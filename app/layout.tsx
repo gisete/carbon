@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutTemplate, MonitorPlay, Settings } from "lucide-react";
-import { IBM_Plex_Sans, IBM_Plex_Serif, JetBrains_Mono, Roboto } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Serif, JetBrains_Mono, Roboto, Nunito } from "next/font/google";
 import localFont from "next/font/local";
 import Logo from "@/app/components/Logo";
 import PageHeader from "@/app/components/PageHeader";
@@ -28,6 +28,12 @@ const jetBrainsMono = JetBrains_Mono({
 	weight: ["300", "400", "500"],
 	subsets: ["latin"],
 	variable: "--font-mono",
+});
+
+const nunito = Nunito({
+	weight: ["400", "600", "700", "800", "900"],
+	subsets: ["latin"],
+	variable: "--font-nunito",
 });
 
 // E-ink optimized fonts
@@ -166,7 +172,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en">
-			<body className={`antialiased ${ibmPlexSans.variable} ${ibmPlexSerif.variable} ${jetBrainsMono.variable} ${roboto.variable} ${chareInk.variable}`}>
+			<body className={`antialiased ${ibmPlexSans.variable} ${ibmPlexSerif.variable} ${jetBrainsMono.variable} ${roboto.variable} ${chareInk.variable} ${nunito.variable}`}>
 				<PluginProvider>
 					<LayoutContent>{children}</LayoutContent>
 				</PluginProvider>

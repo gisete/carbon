@@ -48,7 +48,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 			subtitle = viewMode.charAt(0).toUpperCase() + viewMode.slice(1);
 		} else if (item.type === "weather") {
 			const viewMode = config.viewMode || "current";
-			subtitle = viewMode === "current" ? "Current Conditions" : "7-Day Forecast";
+			subtitle = viewMode === "current" ? "Current Conditions" : viewMode === "weekly" ? "7-Day Forecast" : "Fun View";
 		} else if (item.type === "custom-text") {
 			subtitle = config.text ? "Message configured" : "No message set";
 		} else if (item.type === "logo") {
@@ -219,6 +219,7 @@ export default function ConfigModal({ isOpen, item, onClose, onSave }: ConfigMod
 							>
 								<option value="current">Current Conditions</option>
 								<option value="weekly">7-Day Forecast</option>
+								<option value="fun">Fun</option>
 							</select>
 							<p className="mt-2 text-xs text-warm-gray">Choose how weather information is displayed</p>
 						</div>
