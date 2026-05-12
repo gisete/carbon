@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutTemplate, MonitorPlay, Settings } from "lucide-react";
+import { LayoutTemplate, MonitorPlay, Settings, ImagePlay } from "lucide-react";
 import { IBM_Plex_Sans, IBM_Plex_Serif, JetBrains_Mono, Roboto, Nunito } from "next/font/google";
 import localFont from "next/font/local";
 import Logo from "@/app/components/Logo";
@@ -153,6 +153,19 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 							Settings
 						</span>
 					</Link>
+
+					{/* Render (test) — opens in new tab */}
+					<a
+						href="/api/render"
+						target="_blank"
+						rel="noopener noreferrer"
+						className="flex items-center gap-3 pb-4 border-b-2 -mb-[1px] border-transparent hover:border-bright-blue transition-all group"
+					>
+						<ImagePlay className="w-4 h-4 text-warm-gray group-hover:text-bright-blue" />
+						<span className="font-mono text-xs font-bold tracking-[0.2em] uppercase text-warm-gray group-hover:text-bright-blue">
+							Render
+						</span>
+					</a>
 					</div>
 				</div>
 
