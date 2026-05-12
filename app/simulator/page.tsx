@@ -43,6 +43,10 @@ function buildScreenUrl(item: PlaylistItem): string {
 			return `${baseUrl}/servers`;
 		case "quote":
 			return `${baseUrl}/quote`;
+		case "youtube":
+			return `${baseUrl}/youtube`;
+		case "journey":
+			return `${baseUrl}/journey`;
 		default:
 			return baseUrl;
 	}

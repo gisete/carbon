@@ -3,11 +3,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sun, CalendarDays, Type, GripVertical, SlidersHorizontal, X, Cloud, Eye, EyeOff, Square, Image, Cpu, Smile, Server, Quote } from "lucide-react";
+import { Sun, CalendarDays, Type, GripVertical, SlidersHorizontal, X, Cloud, Eye, EyeOff, Square, Image, Cpu, Smile, Server, Quote, Youtube, MapPin } from "lucide-react";
 import type { PlaylistItem } from "@/lib/playlist";
 
 // --- TYPES ---
-type ScreenType = "weather" | "calendar" | "custom-text" | "logo" | "image" | "system" | "comic" | "servers" | "quote";
+type ScreenType = "weather" | "calendar" | "custom-text" | "logo" | "image" | "system" | "comic" | "servers" | "quote" | "youtube" | "journey";
 
 interface PlaylistGridProps {
 	playlist: PlaylistItem[];
@@ -40,6 +40,10 @@ const renderScreenIcon = (type: ScreenType, colorClass: string) => {
 			return <Server className={`w-6 h-6 ${colorClass} stroke-1`} />;
 		case "quote":
 			return <Quote className={`w-6 h-6 ${colorClass} stroke-1`} />;
+		case "youtube":
+			return <Youtube className={`w-6 h-6 ${colorClass} stroke-1`} />;
+		case "journey":
+			return <MapPin className={`w-6 h-6 ${colorClass} stroke-1`} />;
 		default:
 			return <Sun className={`w-6 h-6 ${colorClass} stroke-1`} />;
 	}
@@ -140,6 +144,24 @@ const renderPreview = (item: PlaylistItem, groupHoverClass: string) => {
 		return (
 			<div className="flex flex-col items-center justify-center w-full h-full gap-1 p-1">
 				<Quote className={`w-4 h-4 ${groupHoverClass}`} />
+				<span className={`text-[6px] uppercase font-mono tracking-wider ${textClass} opacity-60`}>Daily</span>
+			</div>
+		);
+	}
+
+	if (type === "youtube") {
+		return (
+			<div className="flex flex-col items-center justify-center w-full h-full gap-1 p-1">
+				<Youtube className={`w-4 h-4 ${groupHoverClass}`} />
+				<span className={`text-[6px] uppercase font-mono tracking-wider ${textClass} opacity-60`}>Stats</span>
+			</div>
+		);
+	}
+
+	if (type === "journey") {
+		return (
+			<div className="flex flex-col items-center justify-center w-full h-full gap-1 p-1">
+				<MapPin className={`w-4 h-4 ${groupHoverClass}`} />
 				<span className={`text-[6px] uppercase font-mono tracking-wider ${textClass} opacity-60`}>Daily</span>
 			</div>
 		);
