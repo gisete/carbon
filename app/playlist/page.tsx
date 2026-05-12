@@ -218,6 +218,28 @@ export default function PlaylistPage() {
 					duration: 15,
 				};
 				break;
+			case "youtube":
+				newItem = {
+					id: generateId(),
+					type: "youtube",
+					title: "YouTube Analytics",
+					subtitle: "Channel stats & latest video",
+					config: {},
+					lastUpdated: "Just now",
+					duration: 15,
+				};
+				break;
+			case "journey":
+				newItem = {
+					id: generateId(),
+					type: "journey",
+					title: "Sophie's Journey",
+					subtitle: "Daily translated Instagram post",
+					config: {},
+					lastUpdated: "Just now",
+					duration: 30,
+				};
+				break;
 		}
 		setIsScreenModalOpen(false);
 		setIsNewItem(true);
