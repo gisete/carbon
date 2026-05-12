@@ -2,13 +2,15 @@ import { getJourneyPost, wordWrap } from '@/lib/journey';
 
 export const dynamic = 'force-dynamic';
 
+const MONO = 'var(--font-mono), "JetBrains Mono", ui-monospace, monospace';
+const BODY_FONT = 'Roboto, ui-sans-serif, sans-serif';
+
 // Body layout constants
 const FONT_SIZE = 17;
-const LINE_HEIGHT = 21;
-const PARA_GAP = 28;
-const BODY_TOP = 100;
-const BODY_BOTTOM = 460;
-const MAX_CHARS_PER_LINE = 72; // ~760px at 17px Roboto
+const LINE_HEIGHT = 22;
+const PARA_GAP = 26;
+const BODY_BOTTOM = 456;
+const MAX_CHARS_PER_LINE = 72;
 
 // --- MAIN SCREEN ---
 
@@ -28,10 +30,10 @@ export default async function JourneyScreen() {
     >
       <span
         style={{
-          fontFamily: 'Roboto, sans-serif',
+          fontFamily: MONO,
           fontSize: 14,
           fontWeight: 700,
-          letterSpacing: 1,
+          letterSpacing: '0.06em',
           color: '#000',
         }}
       >
@@ -50,7 +52,6 @@ export default async function JourneyScreen() {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          fontFamily: 'Roboto, sans-serif',
         }}
       >
         {header}
@@ -64,10 +65,10 @@ export default async function JourneyScreen() {
             gap: 12,
           }}
         >
-          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.04em' }}>
+          <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700, letterSpacing: '0.04em' }}>
             NO POST AVAILABLE
           </div>
-          <div style={{ fontSize: 13, color: '#777' }}>
+          <div style={{ fontFamily: MONO, fontSize: 13, color: '#777' }}>
             Check that the instaloader script has run.
           </div>
         </div>
@@ -77,26 +78,23 @@ export default async function JourneyScreen() {
 
   const hasMetadata = post.dayNumber !== null || post.location !== null;
 
-  // Pre-wrap body paragraphs and truncate to fit
+  // Pre-wrap body paragraphs and truncate to fit the screen
   type RenderedLine = { text: string; isFirstOfPara: boolean };
   const renderedLines: RenderedLine[] = [];
-  let currentY = BODY_TOP;
+  // BODY_TOP is dynamic: 40 (header) + (hasMetadata ? 54 : 0) (metadata) + 12 (top padding)
+  const metaHeight = hasMetadata ? 54 : 0;
+  const bodyTopOffset = 40 + metaHeight + 12; // px from top of screen
+  let yOffset = 0;
   let overflowed = false;
 
   for (let pi = 0; pi < post.paragraphs.length && !overflowed; pi++) {
-    const isFirst = pi === 0;
-    const paraTopY = isFirst ? currentY : currentY + PARA_GAP;
-
+    if (pi > 0) yOffset += PARA_GAP;
     const lines = wordWrap(post.paragraphs[pi], MAX_CHARS_PER_LINE);
-
     for (let li = 0; li < lines.length && !overflowed; li++) {
-      const lineY = (li === 0 ? paraTopY : currentY) + LINE_HEIGHT;
-      if (lineY > BODY_BOTTOM) {
-        overflowed = true;
-        break;
-      }
-      renderedLines.push({ text: lines[li], isFirstOfPara: li === 0 && !isFirst });
-      currentY = lineY;
+      const absY = bodyTopOffset + yOffset + LINE_HEIGHT;
+      if (absY > BODY_BOTTOM) { overflowed = true; break; }
+      renderedLines.push({ text: lines[li], isFirstOfPara: li === 0 && pi > 0 });
+      yOffset += LINE_HEIGHT;
     }
   }
 
@@ -109,7 +107,6 @@ export default async function JourneyScreen() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        fontFamily: 'Roboto, sans-serif',
         color: '#000',
       }}
     >
@@ -125,10 +122,8 @@ export default async function JourneyScreen() {
             display: 'flex',
             alignItems: 'stretch',
             flexShrink: 0,
-            padding: '0 0',
           }}
         >
-          {/* Day number block */}
           {post.dayNumber !== null && (
             <>
               <div
@@ -142,48 +137,48 @@ export default async function JourneyScreen() {
               >
                 <span
                   style={{
+                    fontFamily: MONO,
                     fontSize: 10,
                     fontWeight: 700,
-                    letterSpacing: 3,
+                    letterSpacing: '0.3em',
                     color: '#777',
                     textTransform: 'uppercase',
                     lineHeight: 1,
-                    marginBottom: 4,
+                    marginBottom: 5,
                   }}
                 >
                   DAY
                 </span>
-                <span style={{ fontSize: 38, fontWeight: 700, lineHeight: 1 }}>
+                <span style={{ fontFamily: MONO, fontSize: 36, fontWeight: 700, lineHeight: 1 }}>
                   {post.dayNumber}
                 </span>
               </div>
-              {/* Vertical divider */}
-              <div
-                style={{
-                  width: 1,
-                  background: '#ddd',
-                  margin: '8px 0',
-                  flexShrink: 0,
-                }}
-              />
+              <div style={{ width: 1, background: '#ddd', margin: '10px 0', flexShrink: 0 }} />
             </>
           )}
 
-          {/* Location block */}
           {post.location !== null && (
             <div
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                paddingLeft: 14,
+                paddingLeft: 16,
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1, marginBottom: 5 }}>
+              <span
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  marginBottom: 6,
+                }}
+              >
                 {post.location}
               </span>
               {post.kmToday !== null && (
-                <span style={{ fontSize: 11, color: '#777', lineHeight: 1 }}>
+                <span style={{ fontFamily: MONO, fontSize: 11, color: '#777', lineHeight: 1 }}>
                   Sweden &middot; {post.kmToday} km today
                 </span>
               )}
@@ -196,28 +191,26 @@ export default async function JourneyScreen() {
       <div
         style={{
           flex: 1,
-          padding: '0 20px',
           overflow: 'hidden',
           position: 'relative',
         }}
       >
         {(() => {
           const els: React.ReactNode[] = [];
-          let yOffset = 8; // small top padding within body area
+          let y = 12;
 
           for (let i = 0; i < renderedLines.length; i++) {
             const line = renderedLines[i];
-            if (line.isFirstOfPara) {
-              yOffset += PARA_GAP;
-            }
+            if (line.isFirstOfPara) y += PARA_GAP;
             els.push(
               <div
                 key={i}
                 style={{
                   position: 'absolute',
-                  top: yOffset,
+                  top: y,
                   left: 20,
                   right: 20,
+                  fontFamily: BODY_FONT,
                   fontSize: FONT_SIZE,
                   lineHeight: `${LINE_HEIGHT}px`,
                   color: '#000',
@@ -228,7 +221,7 @@ export default async function JourneyScreen() {
                 {line.text}
               </div>
             );
-            yOffset += LINE_HEIGHT;
+            y += LINE_HEIGHT;
           }
 
           return els;
