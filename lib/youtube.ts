@@ -184,8 +184,8 @@ export async function getYouTubeData(): Promise<YouTubeData | null> {
         subscriberCount: channelStats.subscriberCount,
         recordedAt: now,
       });
-      if (state.weeklySnapshots.length > 6) {
-        state.weeklySnapshots = state.weeklySnapshots.slice(-6);
+      if (state.weeklySnapshots.length > 7) {
+        state.weeklySnapshots = state.weeklySnapshots.slice(-7);
       }
       stateChanged = true;
     }

@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutTemplate, MonitorPlay, Settings, ImagePlay } from "lucide-react";
-import { IBM_Plex_Sans, IBM_Plex_Serif, JetBrains_Mono, Roboto, Nunito } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Serif, IBM_Plex_Mono, JetBrains_Mono, Roboto, Nunito } from "next/font/google";
 import localFont from "next/font/local";
 import Logo from "@/app/components/Logo";
 import PageHeader from "@/app/components/PageHeader";
@@ -15,6 +15,12 @@ const ibmPlexSans = IBM_Plex_Sans({
 	weight: ["300", "400", "600"],
 	subsets: ["latin"],
 	variable: "--font-sans",
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+	weight: ["400", "700"],
+	subsets: ["latin"],
+	variable: "--font-ibm-mono",
 });
 
 const ibmPlexSerif = IBM_Plex_Serif({
@@ -185,7 +191,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en">
-			<body className={`antialiased ${ibmPlexSans.variable} ${ibmPlexSerif.variable} ${jetBrainsMono.variable} ${roboto.variable} ${chareInk.variable} ${nunito.variable}`}>
+			<body className={`antialiased ${ibmPlexSans.variable} ${ibmPlexSerif.variable} ${ibmPlexMono.variable} ${jetBrainsMono.variable} ${roboto.variable} ${chareInk.variable} ${nunito.variable}`}>
 				<PluginProvider>
 					<LayoutContent>{children}</LayoutContent>
 				</PluginProvider>
