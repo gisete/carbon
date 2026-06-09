@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Moon, Battery } from "lucide-react";
 import {
 	fetchPlaylistCollection,
@@ -9,6 +9,8 @@ import {
 	fetchSettings,
 	tickDirector,
 	deletePlaylistById,
+	advanceToNextScreen,
+	rewindToPrevScreen,
 } from "@/app/actions";
 import type { PlaylistItem, PlaylistCollection, Playlist } from "@/lib/playlist";
 import PlaylistGrid from "./components/PlaylistGrid";
@@ -16,7 +18,9 @@ import ConfigModal from "./components/ConfigModal";
 import AddPlaylistModal from "./components/AddPlaylistModal";
 import PlaylistHeader from "./components/PlaylistHeader";
 import AddScreenButton from "./components/AddScreenButton";
-import ScreenSelectionModal, { type ScreenType } from "./components/ScreenSelectionModal";
+import ScreenSelectionModal from "./components/ScreenSelectionModal";
+import type { ScreenType } from "@/lib/screens";
+
 
 function generateId(): string {
 	return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -38,6 +42,7 @@ export default function PlaylistPage() {
 	const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 	const [isSleeping, setIsSleeping] = useState(false);
 	const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
+	const [isNavigating, setIsNavigating] = useState(false);
 
 	const selectedPlaylist = collection?.playlists.find((p) => p.id === selectedPlaylistId) || null;
 
@@ -58,22 +63,23 @@ export default function PlaylistPage() {
 		loadData();
 	}, []);
 
-	useEffect(() => {
-		async function pollDirectorState() {
-			try {
-				const status = await tickDirector();
-				setActiveItemId(status.currentItem?.id || null);
-				setActivePlaylistId(status.activePlaylistId);
-				setIsSleeping(!!status.isSleeping);
-				setBatteryLevel(status.batteryLevel !== undefined ? status.batteryLevel : null);
-			} catch (error) {
-				console.error("Failed to poll director state:", error);
-			}
+	const pollDirectorState = useCallback(async () => {
+		try {
+			const status = await tickDirector();
+			setActiveItemId(status.currentItem?.id || null);
+			setActivePlaylistId(status.activePlaylistId);
+			setIsSleeping(!!status.isSleeping);
+			setBatteryLevel(status.batteryLevel !== undefined ? status.batteryLevel : null);
+		} catch (error) {
+			console.error("Failed to poll director state:", error);
 		}
+	}, []);
+
+	useEffect(() => {
 		pollDirectorState();
 		const intervalId = setInterval(pollDirectorState, 5000);
 		return () => clearInterval(intervalId);
-	}, []);
+	}, [pollDirectorState]);
 
 	async function savePlaylistItems(items: PlaylistItem[]) {
 		if (!selectedPlaylistId) return;
@@ -428,6 +434,41 @@ export default function PlaylistPage() {
 					</div>
 				)}
 				{batteryLevel === null && <div></div>}
+
+				{/* Prev / Next navigation */}
+				<div className="flex items-center gap-1">
+					<button
+						disabled={isNavigating}
+						onClick={async () => {
+							setIsNavigating(true);
+							await rewindToPrevScreen();
+							await pollDirectorState();
+							setIsNavigating(false);
+						}}
+						className={`font-mono text-xs tracking-widest border border-light-gray hover:border-bright-blue px-3 py-1.5 transition-colors cursor-pointer ${
+							isNavigating ? "text-charcoal opacity-50" : "text-warm-gray hover:text-bright-blue"
+						}`}
+						title="Previous screen"
+					>
+						←
+					</button>
+					<button
+						disabled={isNavigating}
+						onClick={async () => {
+							setIsNavigating(true);
+							await advanceToNextScreen();
+							await pollDirectorState();
+							setIsNavigating(false);
+						}}
+						className={`font-mono text-xs tracking-widest border border-light-gray hover:border-bright-blue px-3 py-1.5 transition-colors cursor-pointer ${
+							isNavigating ? "text-charcoal opacity-50" : "text-warm-gray hover:text-bright-blue"
+						}`}
+						title="Next screen"
+					>
+						→
+					</button>
+				</div>
+
 				<button
 					onClick={() => setIsAddPlaylistModalOpen(true)}
 					className="group flex items-center gap-2 text-sm font-mono tracking-widest hover:text-bright-blue transition-colors cursor-pointer"
@@ -450,7 +491,7 @@ export default function PlaylistPage() {
 				</div>
 			)}
 
-			<div className="space-y-16">
+	<div className="space-y-16">
 				{isLoading ? (
 					<div className="text-center py-12 font-mono text-sm text-warm-gray">Loading playlists...</div>
 				) : collection && collection.playlists.length === 0 ? (

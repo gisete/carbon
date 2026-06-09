@@ -5,6 +5,7 @@ import { Clock, Play, List, Calendar, Cloud, Type, Moon, Battery } from "lucide-
 import { getActivePlaylistItems, tickDirector } from "@/app/actions";
 import type { PlaylistItem } from "@/lib/playlist";
 import type { DirectorStatus } from "@/lib/director";
+import { buildScreenUrl } from "@/lib/screen-url";
 
 function getPluginIcon(type: string) {
 	switch (type) {
@@ -18,37 +19,6 @@ function getPluginIcon(type: string) {
 			return Play;
 		default:
 			return Play;
-	}
-}
-
-function buildScreenUrl(item: PlaylistItem): string {
-	const baseUrl = `${window.location.origin}/screens`;
-	switch (item.type) {
-		case "weather":
-			const weatherView = item.config?.viewMode || "current";
-			return `${baseUrl}/weather?view=${weatherView}`;
-		case "calendar":
-			const calendarView = item.config?.viewMode || "daily";
-			return `${baseUrl}/calendar?view=${calendarView}`;
-		case "custom-text":
-			return `${baseUrl}/custom-text?text=${encodeURIComponent(item.config?.text || "")}`;
-		case "logo":
-			const fontSize = item.config?.fontSize || "120";
-			return `${baseUrl}/logo?fontSize=${fontSize}`;
-		case "system":
-			return `${baseUrl}/system`;
-		case "comic":
-			return `${baseUrl}/comic`;
-		case "servers":
-			return `${baseUrl}/servers`;
-		case "quote":
-			return `${baseUrl}/quote`;
-		case "youtube":
-			return `${baseUrl}/youtube`;
-		case "journey":
-			return `${baseUrl}/journey`;
-		default:
-			return baseUrl;
 	}
 }
 
@@ -95,7 +65,7 @@ export default function SimulatorPage() {
 	}, [directorStatus]);
 
 	const activeItem = directorStatus?.currentItem;
-	const activeUrl = activeItem ? buildScreenUrl(activeItem) : "";
+	const activeUrl = activeItem ? buildScreenUrl(activeItem, `${window.location.origin}/screens`) : "";
 	const displayCountdown = nextSwitchIn;
 	const isSleeping = directorStatus?.isSleeping;
 

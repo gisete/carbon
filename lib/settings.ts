@@ -67,6 +67,14 @@ export async function getSettings(): Promise<Settings> {
 
 	try {
 		const data = await fs.readFile(SETTINGS_FILE, "utf-8");
+
+		// Guard against empty/corrupt file
+		if (!data || data.trim() === "") {
+			console.warn("[Settings] Empty settings file detected, recreating default settings");
+			await saveSettings(DEFAULT_SETTINGS);
+			return DEFAULT_SETTINGS;
+		}
+
 		return JSON.parse(data) as Settings;
 	} catch (error: any) {
 		// If file doesn't exist, return default settings

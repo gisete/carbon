@@ -31,8 +31,8 @@ export async function GET(req: NextRequest) {
         const timeRemaining = initialStatus.nextSwitchTime - Date.now();
         let status;
 
-        if (timeRemaining > 60000) {
-            console.log(`[Display API] Early wake -> Advancing`);
+        if (timeRemaining > 10000) {
+            console.log(`[Display API] Early wake (${Math.round(timeRemaining / 1000)}s remaining) -> Advancing`);
             await advanceCycle();
             status = await tick();
         } else {

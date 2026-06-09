@@ -76,6 +76,20 @@ async function getState(): Promise<DirectorState> {
 
 	try {
 		const data = await fs.readFile(STATE_FILE, "utf-8");
+
+		// Guard against empty/corrupt file
+		if (!data || data.trim() === "") {
+			console.warn("[Director] Empty state file detected, recreating default state");
+			const defaultState: DirectorState = {
+				currentCycleIndex: 0,
+				lastSwitchTime: Date.now(),
+				lastUpdate: new Date().toISOString(),
+				activePlaylistId: null,
+			};
+			await saveState(defaultState);
+			return defaultState;
+		}
+
 		const parsed = JSON.parse(data);
 
 		// Migrate old state format if needed
@@ -325,11 +339,22 @@ export async function advanceCycle(): Promise<void> {
 	const activePlaylist = await resolveActivePlaylist();
 	if (!activePlaylist || activePlaylist.items.length === 0) return;
 
-	const visibleItems = activePlaylist.items.filter((item) => item.visible !== false);
+	const state = await getState();
+
+	// Apply the same filter as tick() — visible check AND shouldSkipItem — so the
+	// index we land on is always valid from tick()'s perspective.
+	const withSkip = await Promise.all(
+		activePlaylist.items
+			.filter((item) => item.visible !== false)
+			.map(async (item) => ({ item, skip: await shouldSkipItem(item, state) }))
+	);
+	const visibleItems = withSkip.filter((r) => !r.skip).map((r) => r.item);
+	const skippedCount = withSkip.length - visibleItems.length;
+
 	if (visibleItems.length === 0) return;
 
-	const state = await getState();
-	const newIndex = (state.currentCycleIndex + 1) % visibleItems.length;
+	const oldIndex = state.currentCycleIndex;
+	const newIndex = (oldIndex + 1) % visibleItems.length;
 
 	const newState: DirectorState = {
 		...state,
@@ -340,7 +365,26 @@ export async function advanceCycle(): Promise<void> {
 	};
 
 	await saveState(newState);
-	if (DEBUG) console.log("[Director] Advanced cycle:", state.currentCycleIndex, "->", newIndex);
+	if (DEBUG) console.log(`[Director] advanceCycle: ${oldIndex} -> ${newIndex} (skipped ${skippedCount} items)`);
+}
+
+export async function rewindCycle(): Promise<void> {
+	const activePlaylist = await resolveActivePlaylist();
+	if (!activePlaylist || activePlaylist.items.length === 0) return;
+
+	const visibleItems = activePlaylist.items.filter(item => item.visible !== false);
+	if (visibleItems.length === 0) return;
+
+	const state = await getState();
+	const newIndex = (state.currentCycleIndex - 1 + visibleItems.length) % visibleItems.length;
+
+	await saveState({
+		...state,
+		currentCycleIndex: newIndex,
+		lastSwitchTime: Date.now(),
+		lastUpdate: new Date().toISOString(),
+		activePlaylistId: activePlaylist.id,
+	});
 }
 
 export async function resetCycle(): Promise<void> {

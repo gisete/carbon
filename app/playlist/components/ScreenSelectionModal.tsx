@@ -1,17 +1,9 @@
 "use client";
 
 import React from "react";
-import { Plus, Cloud, CalendarDays, Type, Square, Image, Cpu, Smile, Server, Quote, Youtube, MapPin } from "lucide-react";
+import { Plus } from "lucide-react";
 import Modal from "@/app/components/Modal";
-
-type ScreenType = "weather" | "calendar" | "custom-text" | "logo" | "image" | "system" | "comic" | "servers" | "quote" | "youtube" | "journey";
-
-interface ScreenOption {
-	type: ScreenType;
-	title: string;
-	description: string;
-	icon: React.ElementType;
-}
+import { SCREENS, type ScreenType } from "@/lib/screens";
 
 interface ScreenSelectionModalProps {
 	isOpen: boolean;
@@ -19,85 +11,16 @@ interface ScreenSelectionModalProps {
 	onSelectScreen: (type: ScreenType) => void;
 }
 
-const SCREEN_OPTIONS: ScreenOption[] = [
-	{
-		type: "weather",
-		title: "Weather",
-		description: "Display current weather conditions",
-		icon: Cloud,
-	},
-	{
-		type: "calendar",
-		title: "Calendar",
-		description: "Show upcoming events from iCal",
-		icon: CalendarDays,
-	},
-	{
-		type: "custom-text",
-		title: "Custom Text",
-		description: "Display custom text message",
-		icon: Type,
-	},
-	{
-		type: "system",
-		title: "System Status",
-		description: "CPU, RAM, and Disk usage stats",
-		icon: Cpu,
-	},
-	{
-		type: "servers",
-		title: "Infrastructure",
-		description: "Carbon Node & UGREEN NAS Status",
-		icon: Server,
-	},
-	{
-		type: "comic",
-		title: "The New Yorker",
-		description: "Daily Cartoon from The New Yorker",
-		icon: Smile,
-	},
-	{
-		type: "logo",
-		title: "Carbon Logo",
-		description: "Display Carbon branding",
-		icon: Square,
-	},
-	{
-		type: "image",
-		title: "Image",
-		description: "Display a custom image",
-		icon: Image,
-	},
-	{
-		type: "quote",
-		title: "Daily Quote",
-		description: "Daily curated quote",
-		icon: Quote,
-	},
-	{
-		type: "youtube",
-		title: "YouTube Analytics",
-		description: "Channel stats, latest video & growth",
-		icon: Youtube,
-	},
-	{
-		type: "journey",
-		title: "Sophie's Journey",
-		description: "Daily translated Instagram post",
-		icon: MapPin,
-	},
-];
-
 export default function ScreenSelectionModal({ isOpen, onClose, onSelectScreen }: ScreenSelectionModalProps) {
 	return (
 		<Modal isOpen={isOpen} onClose={onClose} title="Select Screen" subtitle="Choose a screen to add to your playlist">
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-				{SCREEN_OPTIONS.map((option) => {
-					const Icon = option.icon;
+				{SCREENS.map((screen) => {
+					const Icon = screen.icon;
 					return (
 						<button
-							key={option.type}
-							onClick={() => onSelectScreen(option.type)}
+							key={screen.type}
+							onClick={() => onSelectScreen(screen.type)}
 							className="group w-full bg-pure-white border border-light-gray p-4 text-left hover:border-bright-blue transition-all duration-200 flex items-center gap-4 cursor-pointer"
 						>
 							{/* Icon */}
@@ -111,12 +34,12 @@ export default function ScreenSelectionModal({ isOpen, onClose, onSelectScreen }
 							<div className="flex-1">
 								{/* Title */}
 								<h3 className="text-lg text-charcoal mb-1 group-hover:text-bright-blue transition-colors">
-									{option.title}
+									{screen.title}
 								</h3>
 
 								{/* Description */}
 								<p className="font-mono text-xs text-warm-gray uppercase tracking-wider">
-									{option.description}
+									{screen.description}
 								</p>
 							</div>
 

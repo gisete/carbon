@@ -17,7 +17,7 @@ import {
   setActivePlaylist,
 } from '@/lib/playlist';
 import { getSettings, saveSettings, Settings } from '@/lib/settings';
-import { getCurrentItem, advanceCycle, resetCycle, getDirectorState, tick, DirectorStatus } from '@/lib/director';
+import { getCurrentItem, advanceCycle, rewindCycle, resetCycle, getDirectorState, tick, DirectorStatus } from '@/lib/director';
 
 /**
  * Fetches the current playlist from storage
@@ -63,6 +63,13 @@ export async function getNextScreen(): Promise<PlaylistItem | null> {
  */
 export async function advanceToNextScreen(): Promise<void> {
   await advanceCycle();
+}
+
+/**
+ * Rewinds the cycle to the previous item
+ */
+export async function rewindToPrevScreen(): Promise<void> {
+  await rewindCycle();
 }
 
 /**

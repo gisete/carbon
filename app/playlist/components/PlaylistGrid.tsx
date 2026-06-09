@@ -3,11 +3,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sun, CalendarDays, Type, GripVertical, SlidersHorizontal, X, Cloud, Eye, EyeOff, Square, Image, Cpu, Smile, Server, Quote, Youtube, MapPin } from "lucide-react";
+import { CalendarDays, Type, GripVertical, SlidersHorizontal, X, Cloud, Eye, EyeOff, Image, Cpu, Smile, Server, Quote, Youtube, MapPin } from "lucide-react";
 import type { PlaylistItem } from "@/lib/playlist";
-
-// --- TYPES ---
-type ScreenType = "weather" | "calendar" | "custom-text" | "logo" | "image" | "system" | "comic" | "servers" | "quote" | "youtube" | "journey";
+import { getScreen, type ScreenType } from "@/lib/screens";
 
 interface PlaylistGridProps {
 	playlist: PlaylistItem[];
@@ -18,36 +16,6 @@ interface PlaylistGridProps {
 	onReorder: (reorderedItems: PlaylistItem[]) => void;
 	onToggleVisibility: (id: string) => void;
 }
-
-// --- RENDER HELPERS ---
-const renderScreenIcon = (type: ScreenType, colorClass: string) => {
-	switch (type) {
-		case "weather":
-			return <Sun className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "calendar":
-			return <CalendarDays className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "custom-text":
-			return <Type className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "logo":
-			return <Square className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "image":
-			return <Image className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "system":
-			return <Cpu className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "comic":
-			return <Smile className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "servers":
-			return <Server className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "quote":
-			return <Quote className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "youtube":
-			return <Youtube className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		case "journey":
-			return <MapPin className={`w-6 h-6 ${colorClass} stroke-1`} />;
-		default:
-			return <Sun className={`w-6 h-6 ${colorClass} stroke-1`} />;
-	}
-};
 
 /**
  * Renders a mini-preview based on the item's configuration.
@@ -229,13 +197,14 @@ export default function PlaylistGrid({
 					</div>
 				) : playlist.length === 0 ? (
 					<div className="text-center py-12 font-mono text-sm text-warm-gray border-b border-light-gray">
-						No screens yet. Click "ADD SCREEN" to get started.
+						No screens yet. Click &quot;ADD SCREEN&quot; to get started.
 					</div>
 				) : (
 					playlist.map((item, index) => {
 						const isActive = item.id === activeItemId;
 						const isDragging = draggedIndex === index;
 						const isDragOver = dragOverIndex === index;
+						const ScreenIcon = getScreen(item.type as ScreenType).icon;
 						return (
 							<div
 								key={item.id}
@@ -270,14 +239,10 @@ export default function PlaylistGrid({
 										{String(index + 1).padStart(2, "0")}
 									</div>
 									<div className="col-span-1">
-										{renderScreenIcon(
-											item.type,
-											isActive ? "text-bold-red" : "text-charcoal group-hover:text-bright-blue transition-colors"
-										)}
+										<ScreenIcon className={`w-6 h-6 stroke-1 ${isActive ? "text-bold-red" : "text-charcoal group-hover:text-bright-blue transition-colors"}`} />
 									</div>
 									<div className="col-span-2">
 										<div className="w-20 h-12 border border-light-gray group-hover:border-bright-blue/30 flex items-center justify-center bg-off-white relative overflow-hidden">
-											{/* UPDATED CALL: Pass the full 'item' object here */}
 											{renderPreview(item, isActive ? "text-bold-red" : "text-warm-gray group-hover:text-bright-blue")}
 										</div>
 									</div>

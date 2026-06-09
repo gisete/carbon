@@ -94,17 +94,20 @@ The Director is the rotation engine. Key functions:
 
 ### Screen Types
 
-Valid `PlaylistItem.type` values: `'weather' | 'calendar' | 'custom-text' | 'logo' | 'image' | 'system' | 'comic' | 'servers' | 'quote'`
+The canonical screen registry lives in `lib/screens.ts`. It exports `ScreenType`, `ScreenDefinition`, `SCREENS` (array), and `getScreen(type)`.
+
+Valid `PlaylistItem.type` values: `'weather' | 'calendar' | 'custom-text' | 'logo' | 'image' | 'system' | 'comic' | 'servers' | 'quote' | 'youtube' | 'journey'`
+
+### Adding a new screen
 
 When adding a new screen type, update ALL of these:
 
-1. `PlaylistItem` type union in `lib/playlist.ts`
-2. `ScreenSelectionModal.tsx` — add to `SCREEN_OPTIONS`
-3. `PlaylistGrid.tsx` — add icon in `renderScreenIcon()` and `renderPreview()`
-4. `buildScreenUrl()` in `app/api/render/route.ts`
-5. `buildScreenUrl()` in `app/simulator/page.tsx`
-6. `addScreen()` switch in `app/playlist/page.tsx`
-7. Create `app/screens/{type}/page.tsx`
+1. `lib/screens.ts` — add entry to `SCREENS` array with `type`, `title`, `description`, `icon`, `defaultConfig`, `defaultDuration`, `defaultSubtitle`
+2. `lib/playlist.ts` — add type to `PlaylistItem` type union
+3. `lib/screen-url.ts` — add `case "{type}":` to `buildScreenUrl()`
+4. `app/playlist/page.tsx` — add `case "{type}":` to `addScreen()` switch
+5. `app/playlist/components/PlaylistGrid.tsx` — add `if (type === "{type}")` block to `renderPreview()`
+6. Create `app/screens/{type}/page.tsx`
 
 ### E-ink Rendering Pipeline
 
