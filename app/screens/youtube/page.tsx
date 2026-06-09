@@ -2,10 +2,6 @@ import { getYouTubeData, type WeeklySnapshot, type VideoData } from '@/lib/youtu
 
 export const dynamic = 'force-dynamic';
 
-// Fonts — variables set on <body> by Next.js font loader in layout.tsx
-const NUNITO = 'var(--font-nunito), Nunito, ui-sans-serif, sans-serif';
-const ROBOTO  = 'var(--font-eink-sans), Roboto, ui-sans-serif, sans-serif';
-
 // --- HELPERS ---
 
 function formatFull(n: number): string {
@@ -25,7 +21,6 @@ function formatPublished(iso: string): string {
   return `${day} ${mon} ${d.getFullYear()}`;
 }
 
-// Weekly new-subscriber deltas for the bar chart
 function computeDeltas(snapshots: WeeklySnapshot[]): { weekKey: string; delta: number }[] {
   const out: { weekKey: string; delta: number }[] = [];
   for (let i = 1; i < snapshots.length; i++) {
@@ -37,283 +32,51 @@ function computeDeltas(snapshots: WeeklySnapshot[]): { weekKey: string; delta: n
   return out;
 }
 
-// --- SHARED STYLE PIECES ---
-
-const LABEL_STYLE: React.CSSProperties = {
-  fontFamily: ROBOTO,
-  fontSize: 11,
-  fontWeight: 700,
-  letterSpacing: '1.5px',
-  textTransform: 'uppercase',
-  color: '#444',
-  display: 'block',
-  marginBottom: 4,
-};
-
-const RULE_STYLE: React.CSSProperties = {
-  borderBottom: '1px solid #ddd',
-};
-
-// --- STAT BLOCK (col 1 + col 2 total views) ---
-
-type StatSize = 'xl' | 'lg' | 'md';
-
-const VALUE_FONT: Record<StatSize, React.CSSProperties> = {
-  xl: { fontFamily: NUNITO, fontSize: 56, fontWeight: 900, letterSpacing: -1, lineHeight: 1 },
-  lg: { fontFamily: NUNITO, fontSize: 52, fontWeight: 900, letterSpacing: -1, lineHeight: 1 },
-  md: { fontFamily: NUNITO, fontSize: 40, fontWeight: 800, letterSpacing: -1, lineHeight: 1 },
-};
-
-function StatBlock({
-  label,
-  value,
-  size,
-  unit,
-  sub,
-  last = false,
-}: {
-  label: string;
-  value: string;
-  size: StatSize;
-  unit?: string;
-  sub?: string;
-  last?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        padding: '10px 0 8px',
-        ...(last ? {} : RULE_STYLE),
-      }}
-    >
-      <span style={LABEL_STYLE}>{label}</span>
-      <span style={{ ...VALUE_FONT[size], display: 'block' }}>
-        {value}
-        {unit && (
-          <span style={{ fontFamily: NUNITO, fontSize: 13, color: '#777' }}> {unit}</span>
-        )}
-      </span>
-      {sub && (
-        <span style={{ fontFamily: ROBOTO, fontSize: 11, color: '#777', display: 'block', marginTop: 3 }}>
-          {sub}
-        </span>
-      )}
-    </div>
-  );
-}
-
-// --- BAR CHART (CSS flexbox, no SVG) ---
-
-function BarChart({ deltas }: { deltas: { weekKey: string; delta: number }[] }) {
-  if (deltas.length === 0) return null;
-
-  const maxDelta = Math.max(...deltas.map((d) => d.delta), 1);
-  const currentWeekKey = deltas[deltas.length - 1]?.weekKey;
-
-  return (
-    <div
-      style={{
-        paddingTop: 10,
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <div style={LABEL_STYLE}>Weekly New Subs</div>
-
-      {/* Bars container */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 6,
-          height: 100,
-          flex: 1,
-        }}
-      >
-        {deltas.map((d) => {
-          const isCurrent = d.weekKey === currentWeekKey;
-          const heightPct = Math.max(4, (d.delta / maxDelta) * 100);
-          const weekNum = d.weekKey.split('-W')[1];
-
-          return (
-            <div
-              key={d.weekKey}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                flex: 1,
-                height: '100%',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: ROBOTO,
-                  fontSize: 9,
-                  color: '#777',
-                  marginBottom: 3,
-                  lineHeight: 1,
-                }}
-              >
-                {d.delta > 0 ? `+${d.delta}` : d.delta}
-              </span>
-              <div
-                style={{
-                  width: '100%',
-                  height: `${heightPct}%`,
-                  background: isCurrent ? '#000' : '#ccc',
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: ROBOTO,
-                  fontSize: 9,
-                  color: isCurrent ? '#000' : '#777',
-                  fontWeight: isCurrent ? 700 : 400,
-                  marginTop: 4,
-                  lineHeight: 1,
-                }}
-              >
-                W{weekNum}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// --- VIDEO PANEL (col 3) ---
-
-function VideoPanel({
-  video,
-  rank,
-}: {
-  video: VideoData;
-  rank: { rank: number; total: number } | null;
-}) {
-  const videoStatStyle: React.CSSProperties = {
-    padding: '8px 0',
-    borderBottom: '1px solid #ccc',
-  };
-
-  return (
-    <>
-      <span
-        style={{
-          ...LABEL_STYLE,
-          padding: '10px 0 6px',
-          borderBottom: '1px solid #ccc',
-          marginBottom: 0,
-        }}
-      >
-        Latest Upload
-      </span>
-
-      <div
-        style={{
-          fontFamily: NUNITO,
-          fontSize: 15,
-          fontWeight: 800,
-          color: '#000',
-          lineHeight: 1.35,
-          padding: '10px 0 8px',
-          borderBottom: '1px solid #ccc',
-        }}
-      >
-        {video.title}
-      </div>
-
-      <div style={videoStatStyle}>
-        <span style={LABEL_STYLE}>Published</span>
-        <span style={{ fontFamily: ROBOTO, fontSize: 13, fontWeight: 700, color: '#000' }}>
-          {formatPublished(video.publishedAt)}
-        </span>
-      </div>
-
-      <div style={videoStatStyle}>
-        <span style={LABEL_STYLE}>Views</span>
-        <span style={{ fontFamily: NUNITO, fontSize: 40, fontWeight: 900, color: '#000', lineHeight: 1, letterSpacing: -1 }}>
-          {formatFull(video.viewCount)}
-        </span>
-      </div>
-
-      <div style={{ padding: '8px 0', ...(rank ? { borderBottom: '1px solid #ccc' } : {}) }}>
-        <span style={LABEL_STYLE}>Likes</span>
-        <span style={{ fontFamily: NUNITO, fontSize: 40, fontWeight: 900, color: '#000', lineHeight: 1, letterSpacing: -1 }}>
-          {formatFull(video.likeCount)}
-        </span>
-      </div>
-
-      {rank && (
-        <div>
-          <span
-            style={{
-              display: 'inline-block',
-              border: '1.5px solid #000',
-              padding: '4px 10px',
-              fontFamily: ROBOTO,
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '1px',
-              color: '#000',
-              marginTop: 10,
-            }}
-          >
-            RANK: {rank.rank} / {rank.total}
-          </span>
-        </div>
-      )}
-    </>
-  );
-}
-
 // --- MAIN SCREEN ---
+
+const FONT = "'Helvetica Neue', Helvetica, Arial, sans-serif";
 
 export default async function YoutubeScreen() {
   const data = await getYouTubeData();
 
-  const rootStyle: React.CSSProperties = {
+  const root: React.CSSProperties = {
     width: 800,
     height: 480,
-    background: '#ffffff',
+    background: '#fff',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    WebkitFontSmoothing: 'none' as never,
+    fontFamily: FONT,
   };
 
-  const headerRow = (syncLabel: string) => (
-    <div
-      style={{
-        height: 40,
-        padding: '0 25px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderBottom: '1px solid #ddd',
-        flexShrink: 0,
-      }}
-    >
-      <span style={{ fontFamily: NUNITO, fontSize: 16, fontWeight: 900, letterSpacing: '1px', color: '#000' }}>
-        INKLESS
+  const header = (syncLabel?: string) => (
+    <div style={{
+      height: 42,
+      borderBottom: '2px solid #000',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0 22px',
+      flexShrink: 0,
+    }}>
+      <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: '1px', textTransform: 'uppercase' }}>
+        Inkless
       </span>
-      <span style={{ fontFamily: ROBOTO, fontSize: 11, color: '#777' }}>
-        {syncLabel}
-      </span>
+      {syncLabel && (
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#555', letterSpacing: '1px', textTransform: 'uppercase' }}>
+          {syncLabel}
+        </span>
+      )}
     </div>
   );
 
   if (!data) {
     return (
-      <div style={rootStyle}>
-        {headerRow('YOUTUBE')}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontFamily: NUNITO, fontSize: 18, fontWeight: 900 }}>YOUTUBE DATA UNAVAILABLE</div>
-          <div style={{ fontFamily: ROBOTO, fontSize: 11, color: '#777' }}>
+      <div style={root}>
+        {header()}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <div style={{ fontSize: 18, fontWeight: 900 }}>YOUTUBE DATA UNAVAILABLE</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#777' }}>
             Check YOUTUBE_API_KEY and YOUTUBE_CHANNEL_ID environment variables.
           </div>
         </div>
@@ -326,74 +89,172 @@ export default async function YoutubeScreen() {
     : `SYNC: ${data.minutesSinceFetch}M AGO`;
 
   const deltas = computeDeltas(data.weeklySnapshots);
+  const maxDelta = deltas.length > 0 ? Math.max(...deltas.map((d) => d.delta), 1) : 1;
+  const currentWeekKey = deltas[deltas.length - 1]?.weekKey;
+
+  const newSubs = data.newSubscribersThisWeek;
+  const newSubsDisplay = newSubs !== null
+    ? (newSubs >= 0 ? '+' : '') + formatFull(newSubs)
+    : '—';
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: '2px',
+    textTransform: 'uppercase',
+    color: '#555',
+    marginBottom: 4,
+  };
 
   return (
-    <div style={rootStyle}>
-      {headerRow(syncLabel)}
+    <div style={root}>
+      {header(syncLabel)}
 
-      {/* ── Three columns ── */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      {/* Body */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden' }}>
 
-        {/* ── Col 1: subscriber stats ── */}
-        <div
-          style={{
-            width: 243,
-            padding: '0 25px',
-            display: 'flex',
-            flexDirection: 'column',
-            flexShrink: 0,
-            borderRight: '1px solid #ddd',
-          }}
-        >
-          <StatBlock label="Subscribers"   value={formatFull(data.channelStats.subscriberCount)} size="xl" />
-          {data.newSubscribersThisWeek !== null && (
-            <StatBlock
-              label="New This Week"
-              value={(data.newSubscribersThisWeek >= 0 ? '+' : '') + formatFull(data.newSubscribersThisWeek)}
-              size="xl"
-            />
+        {/* Column 1 — subscriber stats */}
+        <div style={{ width: 210, borderRight: '2px solid #aaa', padding: '18px 20px', flexShrink: 0 }}>
+
+          {/* Subscribers */}
+          <div style={{ borderBottom: '1.5px solid #ccc', paddingBottom: 16, marginBottom: 16 }}>
+            <div style={labelStyle}>Subscribers</div>
+            <div style={{ fontSize: 62, fontWeight: 900, lineHeight: 1, color: '#000', letterSpacing: '-2px' }}>
+              {formatFull(data.channelStats.subscriberCount)}
+            </div>
+          </div>
+
+          {/* New This Week */}
+          <div>
+            <div style={labelStyle}>New This Week</div>
+            <div style={{ fontSize: 62, fontWeight: 900, lineHeight: 1, color: '#000', letterSpacing: '-2px' }}>
+              {newSubsDisplay}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Column 2 — total views + bar chart */}
+        <div style={{ flex: 1, borderRight: '2px solid #aaa', padding: '18px 20px', display: 'flex', flexDirection: 'column' }}>
+
+          {/* Total Views */}
+          <div style={{ borderBottom: '1.5px solid #ccc', paddingBottom: 12, marginBottom: 12 }}>
+            <div style={labelStyle}>Total Views</div>
+            <div style={{ fontSize: 52, fontWeight: 900, letterSpacing: '-2px', lineHeight: 1, color: '#000' }}>
+              {formatShort(data.channelStats.viewCount)}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#555', marginTop: 3 }}>
+              {formatFull(data.channelStats.viewCount)} lifetime
+            </div>
+          </div>
+
+          {/* Bar chart */}
+          {deltas.length > 0 && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ ...labelStyle, marginBottom: 12 }}>Weekly New Subs</div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+                {deltas.map((d) => {
+                  const isCurrent = d.weekKey === currentWeekKey;
+                  const heightPct = Math.max(6, (d.delta / maxDelta) * 100);
+                  const weekNum = d.weekKey.split('-W')[1];
+                  return (
+                    <div
+                      key={d.weekKey}
+                      style={{ flex: 1, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}
+                    >
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#000', marginBottom: 4 }}>
+                        {d.delta > 0 ? `+${d.delta}` : d.delta}
+                      </div>
+                      <div style={{
+                        width: '100%',
+                        height: `${heightPct}%`,
+                        background: isCurrent ? '#000' : '#999',
+                        borderRadius: '2px 2px 0 0',
+                      }} />
+                      <div style={{
+                        fontSize: 12,
+                        fontWeight: isCurrent ? 900 : 800,
+                        color: isCurrent ? '#000' : '#555',
+                        marginTop: 5,
+                        textTransform: 'uppercase',
+                      }}>
+                        W{weekNum}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
-          {/* Analytics-only fields — omit gracefully when unavailable */}
-          {/* Views (28D) and Watch Time would appear here with size="md" when available */}
+
         </div>
 
-        {/* ── Col 2: total views + bar chart ── */}
-        <div
-          style={{
-            width: 278,
-            padding: '0 22px',
-            display: 'flex',
-            flexDirection: 'column',
-            flexShrink: 0,
-            borderRight: '1px solid #ddd',
-          }}
-        >
-          <StatBlock
-            label="Total Views"
-            value={formatShort(data.channelStats.viewCount)}
-            size="lg"
-            sub={`${formatFull(data.channelStats.viewCount)} lifetime`}
-          />
-          {deltas.length > 0 && <BarChart deltas={deltas} />}
-        </div>
+        {/* Column 3 — latest video */}
+        <div style={{ width: 260, background: '#e8e8e8', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
 
-        {/* ── Col 3: latest video ── */}
-        <div
-          style={{
-            flex: 1,
-            background: '#e8e8e8',
-            padding: '0 14px',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
           {data.latestVideo ? (
-            <VideoPanel video={data.latestVideo} rank={data.videoRank} />
+            <>
+              {/* Row 1 — title */}
+              <div style={{ borderBottom: '1.5px solid #ccc', padding: '12px 16px' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: '#666', marginBottom: 4 }}>
+                  Latest Upload
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#000', lineHeight: 1.3 }}>
+                  {data.latestVideo.title}
+                </div>
+              </div>
+
+              {/* Row 2 — published */}
+              <div style={{ borderBottom: '1.5px solid #ccc', padding: '12px 16px' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: '#666', marginBottom: 4 }}>
+                  Published
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#000' }}>
+                  {formatPublished(data.latestVideo.publishedAt)}
+                </div>
+              </div>
+
+              {/* Row 3 — views */}
+              <div style={{ borderBottom: '1.5px solid #ccc', padding: '12px 16px' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: '#666', marginBottom: 4 }}>
+                  Views
+                </div>
+                <div style={{ fontSize: 44, fontWeight: 900, color: '#000', lineHeight: 1, letterSpacing: '-1px' }}>
+                  {formatFull(data.latestVideo.viewCount)}
+                </div>
+              </div>
+
+              {/* Row 4 — likes */}
+              <div style={{ padding: '12px 16px' }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '2px', textTransform: 'uppercase', color: '#666', marginBottom: 4 }}>
+                  Likes
+                </div>
+                <div style={{ fontSize: 34, fontWeight: 900, color: '#000', lineHeight: 1, letterSpacing: '-1px' }}>
+                  {formatFull(data.latestVideo.likeCount)}
+                </div>
+                {data.videoRank && (
+                  <div style={{
+                    display: 'inline-block',
+                    border: '2.5px solid #000',
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    fontWeight: 900,
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase',
+                    color: '#000',
+                    marginTop: 8,
+                  }}>
+                    RANK: {data.videoRank.rank} / {data.videoRank.total}
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
-            <div style={{ fontFamily: ROBOTO, fontSize: 11, color: '#777', marginTop: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#777', padding: '18px 16px' }}>
               No videos found.
             </div>
           )}
+
         </div>
       </div>
     </div>
